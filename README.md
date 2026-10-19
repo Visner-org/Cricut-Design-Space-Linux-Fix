@@ -173,6 +173,14 @@ WINEPREFIX="$HOME/Games/cricut" wine reg add 'HKCU\Software\Wine\X11 Driver' /v 
 
 It applies the next time Design Space starts. Move the window with the app's own title bar, or with your desktop's shortcuts (Alt+drag on KDE).
 
+## Print Then Cut: start from Blank Canvas
+
+This one isn't a Wine problem: it happens on Windows too. Every Design Space project has a type, picked when you create it (Blank Canvas, or a product or project canvas such as cards or iron-on). Design Space asks Cricut's servers which operations that type allows. If Print Then Cut isn't on the list, any printed image in the project is blocked with:
+
+> **Operations not supported.** The Print Then Cut operation is not supported in this project.
+
+Plain shapes in a solid color still work in those projects, which makes it look like a problem with the image. It isn't: the same image works in a new **Blank Canvas** project. Use Blank Canvas for Print Then Cut, not a specific project type. The type is shown at the top left of the canvas.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
@@ -184,7 +192,7 @@ It applies the next time Design Space starts. Move the window with the app's own
 | Connect worked before, fails after Design Space changed version | Design Space updates (or downgrades) itself to the version Cricut assigns your account, which replaces the plugin folders and removes the patched `propsys.dll` | `scripts/install-patched-dlls.sh` |
 | Spinner never stops, or works once and not after a power cycle | Port is in terminal mode | Step 5 |
 | App's top toolbar is hidden | Linux title bar on top of the app's own | Step 6 |
-| "The Print Then Cut operation is not supported in this project" on an image | The project's type doesn't allow printing (a Design Space setting, not Wine) | Start from **Blank Canvas** |
+| "The Print Then Cut operation is not supported in this project" on an image | The project's type doesn't allow printing (a Design Space setting, not Wine) | Start from **Blank Canvas**; see [Print Then Cut](#print-then-cut-start-from-blank-canvas) |
 | Print Then Cut page prints black around the design, no registration marks | Wine's `gdiplus` (Step 4) | Rebuild with the current patch, run `scripts/install-patched-dlls.sh <build folder>`, restart Design Space |
 
 To see what the helper does, start Design Space from a terminal with serial and file logging and search the log for `COM3`:
