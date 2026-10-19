@@ -160,7 +160,7 @@ It applies the next time Design Space starts. Move the window with the app's own
 | Browser sign-in finishes but the app never logs in | No `cricut://` handler, or the browser blocked it | Step 2; allow the browser to open the link |
 | Design Space never finds the machine | Missing registry entries, or the port belongs to something else (a VM, another app) | Step 3, then restart Design Space; check `/dev/ttyACM0` exists and you're in `dialout` |
 | "USB Connection Failed" right away | The device helper keeps quitting (log shows `NativePluginDeviceCommonService … Exit Code 5`) | Step 4 |
-| Connect worked before, fails after a Design Space update | The update replaced the plugin folders and removed the patched `propsys.dll` | `scripts/install-patched-dlls.sh` |
+| Connect worked before, fails after Design Space changed version | Design Space updates (or downgrades) itself to the version Cricut assigns your account, which replaces the plugin folders and removes the patched `propsys.dll` | `scripts/install-patched-dlls.sh` |
 | Spinner never stops, or works once and not after a power cycle | Port is in terminal mode | Step 5 |
 | App's top toolbar is hidden | Linux title bar on top of the app's own | Step 6 |
 
