@@ -27,7 +27,8 @@ MimeType=x-scheme-handler/cricut;
 StartupWMClass=cricut design space.exe
 DESKTOP
 
-rm -f "$DESKTOP_DIR/Cricut Design Space.desktop" "$APPS/wine/Programs/Cricut Design Space.desktop"
+rm -f "$DESKTOP_DIR/Cricut Design Space.desktop" "$DESKTOP_DIR/Cricut Design Space.lnk" \
+      "$APPS/wine/Programs/Cricut Design Space.desktop"
 # Wine's file associations for this prefix (.reg, .chm, .vbs, ...)
 grep -l -F "$WINEPREFIX" "$APPS"/wine-extension-*.desktop 2>/dev/null | xargs -r rm
 

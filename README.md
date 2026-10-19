@@ -62,7 +62,7 @@ This installs `~/.local/bin/cricut-design-space` and a **Cricut Design Space** m
 
 Always start Design Space through this launcher. Electron's main process crashes under Wine with "A JavaScript error occurred in the main process … open EBADF … process.getStderr" when it has no real stdout/stderr, which is the case whenever it starts from a menu, desktop icon or browser link. The launcher sends output to `~/Games/cricut/cricut-design-space.log`. It also sets `winemenubuilder.exe=d` so Design Space updates don't recreate Wine's shortcuts.
 
-The script removes the shortcuts the installer created through Wine (desktop icon, Wine menu entry, and this prefix's `wine-extension-*.desktop` file associations), since those call `wine` directly and hit the crash.
+The script removes the shortcuts the installer created through Wine (desktop icon or `.lnk` file, Wine menu entry, and this prefix's `wine-extension-*.desktop` file associations), since those call `wine` directly and hit the crash.
 
 Sign-in opens in your browser, which then hands a `cricut://?code=…` link back to the app. When the browser asks to open the link, allow it. A second copy of the app starts, passes the code to the open window and exits. This works from a Flatpak browser too.
 
