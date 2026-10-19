@@ -25,7 +25,7 @@ Bluetooth was not tested and probably doesn't work: Wine's Bluetooth support for
 | Machine | Cricut Explore Air 2, USB `20d3:0022` |
 | Browser for login | Firefox (Flatpak) |
 
-Other Cricut machines should work the same way if they show up as a USB serial port (`/dev/ttyACM*`). The patch is against Wine 11.17 but is small enough to apply to nearby versions.
+Other Cricut machines should work the same way if they show up as a USB serial port (`/dev/ttyACM*`). There are two versions of the patch: one for Wine 11.17 (development) and one for 11.0 (the current stable release). The 11.0 one builds but hasn't been run with Design Space yet.
 
 ### Design Space versions
 
@@ -47,7 +47,8 @@ Other Cricut machines should work the same way if they show up as a USB serial p
 | `scripts/cricut-design-space` | Launcher (Step 2) |
 | `scripts/install-launcher.sh` | Installs the launcher, menu entry and `cricut://` handler; removes Wine's shortcuts (Step 2) |
 | `scripts/cricut-registry.sh` | Registers the cutter as a USB serial device on COM3 (Step 3) |
-| `patches/wine-cricut.patch` | Wine patch for `propsys` and `windows.devices.enumeration` (Step 4) |
+| `patches/wine-cricut.patch` | Wine patch for `propsys` and `windows.devices.enumeration`, for Wine 11.17 (Step 4) |
+| `patches/wine-11.0-cricut.patch` | The same patch for Wine 11.0 stable (Step 4) |
 | `scripts/install-patched-dlls.sh` | Installs the patched DLLs for the Cricut helpers only (Step 4) |
 | `udev/99-cricut-raw.rules` | Puts the cutter's serial port in raw mode (Step 5) |
 
@@ -105,7 +106,7 @@ You only rebuild these two DLLs, not all of Wine, and they're used by the Cricut
 
 ### Build
 
-Use the Wine source that matches `wine --version`. You need `gcc`, `make`, `flex`, `bison` and `patch`; the Windows cross-compiler comes from [llvm-mingw](https://github.com/mstorsjo/llvm-mingw/releases), so no sudo is needed. After the downloads, configuring and building take under a minute and about 1.3 GB of disk.
+Use the Wine source that matches `wine --version`, and the matching patch: `wine-cricut.patch` for 11.17, `wine-11.0-cricut.patch` for 11.0. On 11.0, swap `11.x/wine-11.17` for `11.0/wine-11.0` in the download URL and `wine-11.17` for `wine-11.0` in the commands below. You need `gcc`, `make`, `flex`, `bison` and `patch`; the Windows cross-compiler comes from [llvm-mingw](https://github.com/mstorsjo/llvm-mingw/releases), so no sudo is needed. After the downloads, configuring and building take under a minute and about 1.3 GB of disk.
 
 ```bash
 REPO="$PWD"    # run from this repo's folder
@@ -200,6 +201,6 @@ Open questions:
 
 The scripts and udev rule are licensed under the GNU General Public License v3.0 or later. See [LICENSE](LICENSE) for the full text.
 
-`patches/wine-cricut.patch` modifies Wine, which is licensed under the GNU Lesser General Public License v2.1 or later. The patch is under the same license. See [patches/COPYING.LIB](patches/COPYING.LIB).
+The patches in `patches/` modify Wine, which is licensed under the GNU Lesser General Public License v2.1 or later. They're under the same license. See [patches/COPYING.LIB](patches/COPYING.LIB).
 
 This project is not affiliated with or endorsed by Cricut, Inc. Cricut, Cricut Design Space and Explore Air are trademarks of Cricut, Inc. No Cricut software is included; you download Design Space from Cricut yourself.
