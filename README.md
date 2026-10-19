@@ -21,7 +21,7 @@ Bluetooth was not tested and probably doesn't work: Wine's Bluetooth support for
 | Wine | WineHQ `wine-staging` 11.17 |
 | Design Space | 10.7.106 (Electron 43.2.0) |
 | Machine | Cricut Explore Air 2, USB `20d3:0022` |
-| Browser for login | Floorp (Flatpak) |
+| Browser for login | Firefox (Flatpak) |
 
 Other Cricut machines should work the same way if they show up as a USB serial port (`/dev/ttyACM*`). The patch is against Wine 11.17 but is small enough to apply to nearby versions.
 
