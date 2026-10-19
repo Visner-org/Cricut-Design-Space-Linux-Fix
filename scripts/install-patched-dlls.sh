@@ -11,12 +11,18 @@ P="$WINEPREFIX/drive_c/users/$USER/AppData/Local/Programs/Cricut Design Space/re
 W="$WINEPREFIX/drive_c/windows"
 OUT="$WINEPREFIX/patched-dlls"
 
-# With a build folder: save fresh copies in the prefix. Without one: reuse the saved copies.
+# With a Wine build folder, or the unpacked prebuilt DLLs from a release (x86/ and x64/ folders):
+# save fresh copies in the prefix. Without either: reuse the saved copies.
 if [ -n "$1" ]; then
     mkdir -p "$OUT/x86" "$OUT/x64"
     for dll in propsys windows.devices.enumeration gdiplus; do
-        cp "$1/dlls/$dll/i386-windows/$dll.dll"   "$OUT/x86/"
-        cp "$1/dlls/$dll/x86_64-windows/$dll.dll" "$OUT/x64/"
+        if [ -f "$1/x86/$dll.dll" ]; then
+            cp "$1/x86/$dll.dll" "$OUT/x86/"
+            cp "$1/x64/$dll.dll" "$OUT/x64/"
+        else
+            cp "$1/dlls/$dll/i386-windows/$dll.dll"   "$OUT/x86/"
+            cp "$1/dlls/$dll/x86_64-windows/$dll.dll" "$OUT/x64/"
+        fi
     done
 fi
 [ -f "$OUT/x86/propsys.dll" ] || { echo "No patched DLLs yet: pass the build folder"; exit 1; }

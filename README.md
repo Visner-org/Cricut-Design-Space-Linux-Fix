@@ -1,6 +1,6 @@
 # Cricut Design Space on Linux (Wine)
 
-Cricut Design Space 10.7 runs under Wine on Linux and cuts over USB. Sign-in, designing, connecting the machine and cutting all work on an Explore Air 2, and Print Then Cut pages print correctly. No Windows VM needed.
+Cricut Design Space 10.7 runs under Wine on Linux and cuts over USB. Sign-in, designing, connecting the machine, cutting and Print Then Cut all work on an Explore Air 2. No Windows VM needed.
 
 > **Made by AI.** The investigation, every script, the Wine patch and this README were done by an AI assistant, Claude (Anthropic), working on my PC. I set the goal, ran the tests with my own machine, reported what I saw, and checked that it cuts. Read the scripts before running them, and treat the patch as untested beyond the setup below.
 
@@ -33,7 +33,7 @@ Other Cricut machines should work the same way if they show up as a USB serial p
 
 | Version | Result (2026-10-19) |
 | --- | --- |
-| 10.7.106 | Works: sign-in, USB connect and cutting, including after power cycles. Print Then Cut prints the page with its registration marks; the cutter reading them hasn't been tested yet |
+| 10.7.106 | Works: sign-in, USB connect and cutting, including after power cycles. Print Then Cut works: the page prints with its registration marks, the machine reads them, and the cut lands within a millimetre |
 | 10.8.81 | Installs silently with `/S` from the full installer. Its device helpers are new builds but use the same Windows property names, so the patch should cover them. Cutting untested: the app downgraded itself to 10.7.106 within minutes (see below) |
 
 **Design Space picks its own version.** `latest.json` lists the newest release, but the app follows the version Cricut assigns your account and will update or downgrade itself to match. Installing a newer version than your account's just gets reverted. Any version change, either way:
@@ -110,6 +110,10 @@ Print Then Cut hits a third gap. Design Space's printer helper, `plugins/system-
 
 You only rebuild these three DLLs, not all of Wine, and they're used by Design Space's helpers alone. Your system Wine stays untouched.
 
+### Prebuilt DLLs (Wine 11.17 only)
+
+On Wine 11.17 you can skip the build: download `cricut-wine-11.17-patched-dlls.zip` from the [latest release](https://github.com/Visner-org/Cricut-Design-Space-Linux-Fix/releases/latest), unpack it, and pass its folder to the install script (see Install below) instead of a build folder. For any other Wine version, build them from source.
+
 ### Build
 
 Use the Wine source that matches `wine --version`, and the matching patch: `wine-cricut.patch` for 11.17, `wine-11.0-cricut.patch` for 11.0. On 11.0, swap `11.x/wine-11.17` for `11.0/wine-11.0` in the download URL and `wine-11.17` for `wine-11.0` in the commands below. You need `gcc`, `make`, `flex`, `bison` and `patch`; the Windows cross-compiler comes from [llvm-mingw](https://github.com/mstorsjo/llvm-mingw/releases), so no sudo is needed. After the downloads, configuring and building take under a minute and about 1.3 GB of disk.
@@ -142,7 +146,7 @@ Close Design Space first; overwriting DLLs it has loaded can crash it.
 
 ```bash
 wineserver -k
-"$REPO/scripts/install-patched-dlls.sh" ~/cricut-wine/build   # first time
+"$REPO/scripts/install-patched-dlls.sh" ~/cricut-wine/build   # first time (or the unpacked prebuilt folder)
 "$REPO/scripts/install-patched-dlls.sh"                       # after a Design Space update
 ```
 
@@ -211,7 +215,6 @@ None of this is in Wine yet. The patch fills gaps in Wine rather than adding Cri
 Open questions:
 
 - Bluetooth connection is untested. Wine's `BluetoothAdapter.GetRadioAsync` is still a stub.
-- Print Then Cut: the page prints correctly; the Explore Air 2 reading the registration marks and cutting hasn't been tested yet.
 - Only the Explore Air 2 was tested. Reports from other machines (Maker, Joy, Explore 3) are welcome.
 
 ## License
