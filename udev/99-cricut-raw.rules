@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 visner
+#
+# Put Cricut USB serial ports (vendor 20d3) in raw mode when they appear.
+# Linux defaults to terminal mode, which mangles Design Space's binary protocol.
+# Install: sudo cp 99-cricut-raw.rules /etc/udev/rules.d/ && sudo udevadm control --reload
+ACTION=="add", SUBSYSTEM=="tty", ATTRS{idVendor}=="20d3", RUN+="/usr/bin/stty -F /dev/%k raw -echo -echoe -echok -echoctl -echoke -hupcl"

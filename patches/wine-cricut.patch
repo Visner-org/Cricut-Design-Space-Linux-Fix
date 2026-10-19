@@ -1,0 +1,111 @@
+SPDX-License-Identifier: LGPL-2.1-or-later
+Copyright (C) 2026 visner
+
+Changes to Wine (https://www.winehq.org), which is licensed under the GNU
+Lesser General Public License version 2.1 or later. These changes are under
+the same license; see COPYING.LIB in this folder.
+
+Subject: Fix Cricut Design Space device helper crashing under Wine
+
+propsys: add System.Devices.Aep.{CanPair,IsPresent,SignalStrength} and
+System.DeviceInterface.Bluetooth.{VendorId,ProductId} to the system property
+table. The keys are already defined in include/propkey.h.
+
+windows.devices.enumeration: implement DeviceWatcher add_Removed,
+remove_Updated and remove_Removed (they returned E_NOTIMPL) by keeping
+handler lists, like add_Added does.
+
+Without these, CricutDevice.exe throws while creating its Bluetooth
+DeviceWatcher and exits before it ever opens the USB serial port.
+
+Against Wine 11.17. Apply from the Wine source root: patch -p1 < wine-cricut.patch
+
+--- a/dlls/propsys/propsys_main.c
++++ b/dlls/propsys/propsys_main.c
+@@ -852,12 +852,17 @@
+     {L"System.Devices.GlyphIcon", &PKEY_Devices_GlyphIcon, VT_LPWSTR},
+     {L"System.Devices.DevObjectType", &PKEY_Devices_DevObjectType, VT_UI4},
+     {L"System.DeviceInterface.Bluetooth.DeviceAddress", &PKEY_DeviceInterface_Bluetooth_DeviceAddress, VT_LPWSTR},
++    {L"System.DeviceInterface.Bluetooth.ProductId", &PKEY_DeviceInterface_Bluetooth_ProductId, VT_UI2},
++    {L"System.DeviceInterface.Bluetooth.VendorId", &PKEY_DeviceInterface_Bluetooth_VendorId, VT_UI2},
+     {L"System.Devices.Aep.AepId", &PKEY_Devices_Aep_AepId, VT_LPWSTR},
+     {L"System.Devices.Aep.ProtocolId", &PKEY_Devices_Aep_ProtocolId, VT_CLSID},
+     {L"System.Devices.Aep.IsPaired", &PKEY_Devices_Aep_IsPaired, VT_BOOL},
+     {L"System.Devices.Aep.IsConnected", &PKEY_Devices_Aep_IsConnected, VT_BOOL},
+     {L"System.Devices.Aep.Bluetooth.Le.AddressType", &PKEY_Devices_Aep_Bluetooth_Le_AddressType, VT_UI1},
+     {L"System.Devices.Aep.DeviceAddress", &PKEY_Devices_Aep_DeviceAddress, VT_LPWSTR},
++    {L"System.Devices.Aep.CanPair", &PKEY_Devices_Aep_CanPair, VT_BOOL},
++    {L"System.Devices.Aep.IsPresent", &PKEY_Devices_Aep_IsPresent, VT_BOOL},
++    {L"System.Devices.Aep.SignalStrength", &PKEY_Devices_Aep_SignalStrength, VT_I4},
+     {L"System.Devices.AepContainer.IsPaired", &PKEY_Devices_AepContainer_IsPaired, VT_BOOL},
+     {L"System.Devices.AepService.ProtocolId", &PKEY_Devices_AepService_ProtocolId, VT_CLSID},
+     {L"System.Devices.ModelName", &PKEY_Devices_ModelName, VT_LPWSTR},
+--- a/dlls/windows.devices.enumeration/main.c
++++ b/dlls/windows.devices.enumeration/main.c
+@@ -118,6 +118,8 @@
+     struct weak_reference_source weak_reference_source;
+ 
+     struct list added_handlers;
++    struct list updated_handlers;
++    struct list removed_handlers;
+     struct list enumerated_handlers;
+     struct list stopped_handlers;
+     IUnknown *query_params;
+@@ -177,6 +179,8 @@
+     if (!ref)
+     {
+         typed_event_handlers_clear( &impl->added_handlers );
++        typed_event_handlers_clear( &impl->updated_handlers );
++        typed_event_handlers_clear( &impl->removed_handlers );
+         typed_event_handlers_clear( &impl->enumerated_handlers );
+         typed_event_handlers_clear( &impl->stopped_handlers );
+         IUnknown_Release( impl->query_params );
+@@ -225,27 +229,31 @@
+ static HRESULT WINAPI device_watcher_add_Updated( IDeviceWatcher *iface, ITypedEventHandler_DeviceWatcher_DeviceInformationUpdate *handler,
+                                                   EventRegistrationToken *token )
+ {
+-    FIXME( "iface %p, handler %p, token %p stub!\n", iface, handler, token );
+-    return S_OK;
++    struct device_watcher *impl = impl_from_IDeviceWatcher( iface );
++    TRACE( "iface %p, handler %p, token %p\n", iface, handler, token );
++    return typed_event_handlers_append( &impl->updated_handlers, (ITypedEventHandler_IInspectable_IInspectable *)handler, token );
+ }
+ 
+ static HRESULT WINAPI device_watcher_remove_Updated( IDeviceWatcher *iface, EventRegistrationToken token )
+ {
+-    FIXME( "iface %p, token %#I64x stub!\n", iface, token.value );
+-    return E_NOTIMPL;
++    struct device_watcher *impl = impl_from_IDeviceWatcher( iface );
++    TRACE( "iface %p, token %#I64x.\n", iface, token.value );
++    return typed_event_handlers_remove( &impl->updated_handlers, &token );
+ }
+ 
+ static HRESULT WINAPI device_watcher_add_Removed( IDeviceWatcher *iface, ITypedEventHandler_DeviceWatcher_DeviceInformationUpdate *handler,
+                                                   EventRegistrationToken *token )
+ {
+-    FIXME( "iface %p, handler %p, token %p stub!\n", iface, handler, token );
+-    return E_NOTIMPL;
++    struct device_watcher *impl = impl_from_IDeviceWatcher( iface );
++    TRACE( "iface %p, handler %p, token %p\n", iface, handler, token );
++    return typed_event_handlers_append( &impl->removed_handlers, (ITypedEventHandler_IInspectable_IInspectable *)handler, token );
+ }
+ 
+ static HRESULT WINAPI device_watcher_remove_Removed( IDeviceWatcher *iface, EventRegistrationToken token )
+ {
+-    FIXME( "iface %p, token %#I64x stub!\n", iface, token.value );
+-    return E_NOTIMPL;
++    struct device_watcher *impl = impl_from_IDeviceWatcher( iface );
++    TRACE( "iface %p, token %#I64x.\n", iface, token.value );
++    return typed_event_handlers_remove( &impl->removed_handlers, &token );
+ }
+ 
+ static HRESULT WINAPI device_watcher_add_EnumerationCompleted( IDeviceWatcher *iface, ITypedEventHandler_DeviceWatcher_IInspectable *handler,
+@@ -592,6 +600,8 @@
+     if (FAILED(hr = devquery_params_create( type, expr, prop_keys, prop_keys_len, &impl->query_params ))) goto failed;
+ 
+     list_init( &impl->added_handlers );
++    list_init( &impl->updated_handlers );
++    list_init( &impl->removed_handlers );
+     list_init( &impl->enumerated_handlers );
+     list_init( &impl->stopped_handlers );
+ 

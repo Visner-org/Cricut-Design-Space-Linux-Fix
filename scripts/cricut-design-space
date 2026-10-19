@@ -1,0 +1,10 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 visner
+#
+# Start Cricut Design Space under Wine. Optional argument: the cricut:// login
+# callback URL that the browser hands back after sign-in.
+export WINEPREFIX="${WINEPREFIX:-$HOME/Games/cricut}" WINEDEBUG=-all WINEDLLOVERRIDES="winemenubuilder.exe=d"
+cd "$WINEPREFIX/drive_c/users/$USER/AppData/Local/Programs/Cricut Design Space" || exit 1
+# Electron's main process crashes (EBADF) if stdio isn't a real file under Wine
+exec wine "Cricut Design Space.exe" "$@" </dev/null >>"$WINEPREFIX/cricut-design-space.log" 2>&1
