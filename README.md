@@ -41,6 +41,8 @@ Other Cricut machines should work the same way if they show up as a USB serial p
 - replaces the plugin folders, which removes the patched `propsys.dll` (re-run `scripts/install-patched-dlls.sh`; the patched `gdiplus` lives in the prefix's system folder and stays)
 - drops a raw `Cricut Design Space.lnk` on your desktop (`scripts/install-launcher.sh` removes it)
 
+To stay on a version that works, see [Optional: stop automatic updates](#optional-stop-automatic-updates).
+
 ## What's in this repo
 
 | File | What it does |
@@ -177,6 +179,23 @@ WINEPREFIX="$HOME/Games/cricut" wine reg add 'HKCU\Software\Wine\X11 Driver' /v 
 
 It applies the next time Design Space starts. Move the window with the app's own title bar, or with your desktop's shortcuts (Alt+drag on KDE).
 
+## Optional: stop automatic updates
+
+Design Space needs the internet to sign in, open saved projects and upload images, so don't block it entirely. Block only its updates: every update or downgrade is downloaded to one folder, `AppData/Local/app-desktop-design-updater`, as `installer.exe`. Lock that folder and no update can land.
+
+```bash
+U="$HOME/Games/cricut/drive_c/users/$USER/AppData/Local/app-desktop-design-updater"
+mkdir -p "$U" ~/Games/cricut/installers
+# Keep a cached installer, if there is one: it's usually the version you're running
+[ -f "$U/installer.exe" ] && mv "$U/installer.exe" ~/Games/cricut/installers/
+echo "Locked so Design Space can't download updates. Undo: sudo chattr -i on this folder." > "$U/LOCKED.txt"
+sudo chattr +i "$U"
+```
+
+A plain `chmod` isn't enough: Wine clears the read-only flag on files you own before deleting them. The immutable flag (`chattr +i`, root only) stops Wine from writing, deleting or changing the folder. The `LOCKED.txt` inside keeps it from being an empty folder.
+
+If Cricut ever makes an update mandatory, Design Space may refuse to run. Undo the lock with `sudo chattr -i "$U"`, let it update, then run `scripts/install-patched-dlls.sh` again.
+
 ## Print Then Cut: start from Blank Canvas
 
 This one isn't a Wine problem: it happens on Windows too. Every Design Space project has a type, picked when you create it (Blank Canvas, or a product or project canvas such as cards or iron-on). Design Space asks Cricut's servers which operations that type allows. If Print Then Cut isn't on the list, any printed image in the project is blocked with:
@@ -197,6 +216,7 @@ Plain shapes in a solid color still work in those projects, which makes it look 
 | Spinner never stops, or works once and not after a power cycle | Port is in terminal mode | Step 5 |
 | App's top toolbar is hidden | Linux title bar on top of the app's own | Step 6 |
 | "The Print Then Cut operation is not supported in this project" on an image | The project's type doesn't allow printing (a Design Space setting, not Wine) | Start from **Blank Canvas**; see [Print Then Cut](#print-then-cut-start-from-blank-canvas) |
+| Design Space won't start, asks for an update you can't install | Updates are locked ([Optional: stop automatic updates](#optional-stop-automatic-updates)) and Cricut made one mandatory | `sudo chattr -i` the updater folder, let it update, run `scripts/install-patched-dlls.sh` |
 | Print Then Cut page prints black around the design, no registration marks | Wine's `gdiplus` (Step 4) | Rebuild with the current patch, run `scripts/install-patched-dlls.sh <build folder>`, restart Design Space |
 
 To see what the helper does, start Design Space from a terminal with serial and file logging and search the log for `COM3`:
