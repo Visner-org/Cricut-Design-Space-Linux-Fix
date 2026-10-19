@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 visner
 #
-# Install patched propsys + windows.devices.enumeration for Design Space's device helpers only.
+# Install patched propsys + windows.devices.enumeration for Design Space's device helpers, and
+# patched gdiplus for its printer helper. Nothing else in the prefix uses them.
 # Re-run after a Design Space update (it replaces the plugin folders) or a Wine update.
 set -e
 export WINEPREFIX="${WINEPREFIX:-$HOME/Games/cricut}" WINEDEBUG=-all
@@ -13,12 +14,13 @@ OUT="$WINEPREFIX/patched-dlls"
 # With a build folder: save fresh copies in the prefix. Without one: reuse the saved copies.
 if [ -n "$1" ]; then
     mkdir -p "$OUT/x86" "$OUT/x64"
-    for dll in propsys windows.devices.enumeration; do
+    for dll in propsys windows.devices.enumeration gdiplus; do
         cp "$1/dlls/$dll/i386-windows/$dll.dll"   "$OUT/x86/"
         cp "$1/dlls/$dll/x86_64-windows/$dll.dll" "$OUT/x64/"
     done
 fi
 [ -f "$OUT/x86/propsys.dll" ] || { echo "No patched DLLs yet: pass the build folder"; exit 1; }
+[ -f "$OUT/x86/gdiplus.dll" ] || { echo "No patched gdiplus yet: rebuild with the current patch and pass the build folder"; exit 1; }
 
 # Blank Wine's builtin marker so the loader uses these copies instead of the stock builtins
 for f in "$OUT"/x86/*.dll "$OUT"/x64/*.dll; do
@@ -35,11 +37,14 @@ cp "$OUT/x86/propsys.dll" "$P/device-common/"
 cp "$OUT/x86/propsys.dll" "$P/device-common-next/"
 cp "$OUT/x64/propsys.dll" "$P/cricut-device-io/"
 
-# windows.devices.enumeration: WinRT loads it by full system path
+# windows.devices.enumeration: WinRT loads it by full system path.
+# gdiplus: a Wine "known DLL", always loaded from the system folder, so a copy next to the helper is ignored.
 for pair in "syswow64:x86" "system32:x64"; do
     dir=${pair%%:*}; arch=${pair##*:}
-    [ -f "$W/$dir/windows.devices.enumeration.dll.orig" ] || cp "$W/$dir/windows.devices.enumeration.dll" "$W/$dir/windows.devices.enumeration.dll.orig"
-    cp "$OUT/$arch/windows.devices.enumeration.dll" "$W/$dir/"
+    for dll in windows.devices.enumeration gdiplus; do
+        [ -f "$W/$dir/$dll.dll.orig" ] || cp "$W/$dir/$dll.dll" "$W/$dir/$dll.dll.orig"
+        cp "$OUT/$arch/$dll.dll" "$W/$dir/"
+    done
 done
 
 # Prefer these copies for the helpers only; everything else keeps Wine's builtins
@@ -48,4 +53,5 @@ for exe in CricutDevice.exe CricutDeviceIO.exe; do
         wine reg add "HKCU\\Software\\Wine\\AppDefaults\\$exe\\DllOverrides" /v "$dll" /d native,builtin /f >/dev/null
     done
 done
+wine reg add "HKCU\\Software\\Wine\\AppDefaults\\CricutSystemPrinter.exe\\DllOverrides" /v gdiplus /d native,builtin /f >/dev/null
 echo "Patched DLLs installed."

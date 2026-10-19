@@ -5,7 +5,7 @@ Changes to Wine (https://www.winehq.org), which is licensed under the GNU
 Lesser General Public License version 2.1 or later. These changes are under
 the same license; see COPYING.LIB in this folder.
 
-Subject: Fix Cricut Design Space device helper crashing under Wine
+Subject: Fix Cricut Design Space's device helper and Print Then Cut printing under Wine
 
 propsys: add System.Devices.Aep.{CanPair,IsPresent,SignalStrength} and
 System.DeviceInterface.Bluetooth.{VendorId,ProductId} to the system property
@@ -17,6 +17,13 @@ handler lists, like add_Added does.
 
 Without these, CricutDevice.exe throws while creating its Bluetooth
 DeviceWatcher and exits before it ever opens the USB serial port.
+
+gdiplus: an image with alpha drawn at its own size to a printer that can't
+blend (SHADEBLENDCAPS SB_NONE) skipped the software path, so gdi_alpha_blend
+fell back to a plain StretchBlt and transparent pixels printed black. Use the
+software path there too; it blends onto white, as scaled draws already do.
+CricutSystemPrinter.exe draws Print Then Cut pages this way, so the page came
+out black around the design and lost its registration marks.
 
 Against Wine 11.17. Apply from the Wine source root: patch -p1 < wine-cricut.patch
 
@@ -109,3 +116,20 @@ Against Wine 11.17. Apply from the Wine source root: patch -p1 < wine-cricut.pat
      list_init( &impl->enumerated_handlers );
      list_init( &impl->stopped_handlers );
  
+--- a/dlls/gdiplus/graphics.c
++++ b/dlls/gdiplus/graphics.c
+@@ -3294,8 +3294,13 @@
+             srcx + srcwidth > bitmap->width || srcy + srcheight > bitmap->height)
+             do_resampling = TRUE;
+ 
++        /* A printer that can't blend gets a plain copy in gdi_alpha_blend, which would
++         * print transparent pixels black. The software path blends them onto white. */
+         if (imageAttributes || graphics->alpha_hdc || do_resampling ||
+-            (graphics->image && graphics->image->type == ImageTypeBitmap))
++            (graphics->image && graphics->image->type == ImageTypeBitmap) ||
++            (bitmap->image.flags & ImageFlagsHasAlpha && graphics->hdc &&
++             GetDeviceCaps(graphics->hdc, TECHNOLOGY) == DT_RASPRINTER &&
++             GetDeviceCaps(graphics->hdc, SHADEBLENDCAPS) == SB_NONE))
+             use_software = TRUE;
+ 
+         if (use_software)

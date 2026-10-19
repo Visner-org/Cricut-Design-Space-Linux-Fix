@@ -1,6 +1,6 @@
 # Cricut Design Space on Linux (Wine)
 
-Cricut Design Space 10.7 runs under Wine on Linux and cuts over USB. Sign-in, designing, connecting the machine and cutting all work on an Explore Air 2. No Windows VM needed.
+Cricut Design Space 10.7 runs under Wine on Linux and cuts over USB. Sign-in, designing, connecting the machine and cutting all work on an Explore Air 2, and Print Then Cut pages print correctly. No Windows VM needed.
 
 > **Made by AI.** The investigation, every script, the Wine patch and this README were done by an AI assistant, Claude (Anthropic), working on my PC. I set the goal, ran the tests with my own machine, reported what I saw, and checked that it cuts. Read the scripts before running them, and treat the patch as untested beyond the setup below.
 
@@ -12,6 +12,7 @@ Out of the box it fails in several places. These are the fixes, in the order you
 4. **The device helper quits every 10–50 seconds.** Two gaps in Wine (`propsys` and `windows.devices.enumeration`) kill it. A short patch fixes both.
 5. **The machine stops answering mid-connect.** Linux opens the port in terminal mode, which mangles the binary protocol. A udev rule switches it to raw mode.
 6. **The Linux title bar hides the app's top bar.** One registry value fixes that.
+7. **Print Then Cut pages print black** around the design, and the registration marks disappear. A gap in Wine's `gdiplus`; the same patch as item 4 fixes it.
 
 Bluetooth was not tested and probably doesn't work: Wine's Bluetooth support for apps is mostly stubs.
 
@@ -24,6 +25,7 @@ Bluetooth was not tested and probably doesn't work: Wine's Bluetooth support for
 | Design Space | 10.7.106 (Electron 43.2.0) |
 | Machine | Cricut Explore Air 2, USB `20d3:0022` |
 | Browser for login | Firefox (Flatpak) |
+| Printer | Epson ET-4760 and a CUPS PDF printer |
 
 Other Cricut machines should work the same way if they show up as a USB serial port (`/dev/ttyACM*`). There are two versions of the patch: one for Wine 11.17 (development) and one for 11.0 (the current stable release). The 11.0 one builds but hasn't been run with Design Space yet.
 
@@ -31,12 +33,12 @@ Other Cricut machines should work the same way if they show up as a USB serial p
 
 | Version | Result (2026-10-19) |
 | --- | --- |
-| 10.7.106 | Works: sign-in, USB connect and cutting, including after power cycles |
+| 10.7.106 | Works: sign-in, USB connect and cutting, including after power cycles. Print Then Cut prints the page with its registration marks; the cutter reading them hasn't been tested yet |
 | 10.8.81 | Installs silently with `/S` from the full installer. Its device helpers are new builds but use the same Windows property names, so the patch should cover them. Cutting untested: the app downgraded itself to 10.7.106 within minutes (see below) |
 
 **Design Space picks its own version.** `latest.json` lists the newest release, but the app follows the version Cricut assigns your account and will update or downgrade itself to match. Installing a newer version than your account's just gets reverted. Any version change, either way:
 
-- replaces the plugin folders, which removes the patched `propsys.dll` (re-run `scripts/install-patched-dlls.sh`)
+- replaces the plugin folders, which removes the patched `propsys.dll` (re-run `scripts/install-patched-dlls.sh`; the patched `gdiplus` lives in the prefix's system folder and stays)
 - drops a raw `Cricut Design Space.lnk` on your desktop (`scripts/install-launcher.sh` removes it)
 
 ## What's in this repo
@@ -47,9 +49,9 @@ Other Cricut machines should work the same way if they show up as a USB serial p
 | `scripts/cricut-design-space` | Launcher (Step 2) |
 | `scripts/install-launcher.sh` | Installs the launcher, menu entry and `cricut://` handler; removes Wine's shortcuts (Step 2) |
 | `scripts/cricut-registry.sh` | Registers the cutter as a USB serial device on COM3 (Step 3) |
-| `patches/wine-cricut.patch` | Wine patch for `propsys` and `windows.devices.enumeration`, for Wine 11.17 (Step 4) |
+| `patches/wine-cricut.patch` | Wine patch for `propsys`, `windows.devices.enumeration` and `gdiplus`, for Wine 11.17 (Step 4) |
 | `patches/wine-11.0-cricut.patch` | The same patch for Wine 11.0 stable (Step 4) |
-| `scripts/install-patched-dlls.sh` | Installs the patched DLLs for the Cricut helpers only (Step 4) |
+| `scripts/install-patched-dlls.sh` | Installs the patched DLLs for Design Space's helpers only (Step 4) |
 | `udev/99-cricut-raw.rules` | Puts the cutter's serial port in raw mode (Step 5) |
 
 All scripts use the prefix `~/Games/cricut`. Set `WINEPREFIX` to use another one.
@@ -95,14 +97,18 @@ With the machine **on and plugged in** (the script reads its serial number from 
 
 It maps COM3 to `/dev/ttyACM0` and adds the registry entries Windows would create: the device under `Enum\USB\VID_20D3&PID_…\<serial>` with `PortName=COM3`, plus the USB-device and COM-port interfaces marked as present. Restart Design Space afterwards, since it searches for USB devices only at startup. Without Step 4, connecting then fails with "USB Connection Failed".
 
-## Step 4: Patch two Wine DLLs
+## Step 4: Patch three Wine DLLs
 
 Design Space hands the connection to a helper, `plugins/device-common/CricutDevice.exe`. At startup it sets up Bluetooth discovery through the WinRT `DeviceWatcher` API, and two gaps in Wine kill it with exit code 5 before it reaches USB:
 
 - **`propsys`** doesn't know the property names `System.Devices.Aep.SignalStrength`, `IsPresent`, `CanPair` and `System.DeviceInterface.Bluetooth.VendorId`/`ProductId`. The keys already exist in Wine's headers; they're just missing from the lookup table.
 - **`windows.devices.enumeration`**: `DeviceWatcher.add_Removed`, `remove_Updated` and `remove_Removed` return `E_NOTIMPL`. The patch stores those handlers like `add_Added` does.
 
-You only rebuild these two DLLs, not all of Wine, and they're used by the Cricut helpers alone. Your system Wine stays untouched.
+Print Then Cut hits a third gap. Design Space's printer helper, `plugins/system-printer/CricutSystemPrinter.exe`, gets the page as a PNG with a transparent background and draws it at its exact size with GDI+:
+
+- **`gdiplus`** sends an unscaled image with transparency to a printer as a plain copy, so transparent pixels print as black. The page comes out black around the design and the registration marks vanish into it. Scaled images were already blended onto white; the patch sends unscaled ones the same way.
+
+You only rebuild these three DLLs, not all of Wine, and they're used by Design Space's helpers alone. Your system Wine stays untouched.
 
 ### Build
 
@@ -127,7 +133,7 @@ mkdir build && cd build
   --without-netapi --without-sane --without-usb --without-v4l2 \
   --without-udev --without-sdl --without-pcap --without-pcsclite \
   --without-capi --without-gphoto --without-inotify --without-xinerama
-make -j"$(nproc)" dlls/propsys/all dlls/windows.devices.enumeration/all
+make -j"$(nproc)" dlls/propsys/all dlls/windows.devices.enumeration/all dlls/gdiplus/all
 ```
 
 ### Install
@@ -140,7 +146,7 @@ wineserver -k
 "$REPO/scripts/install-patched-dlls.sh"                       # after a Design Space update
 ```
 
-Two Wine details shape this script. `WINEDLLPATH` can't override a built-in DLL, because Wine searches its own DLL folder first. And Wine swaps any file tagged "Wine builtin DLL" for its stock copy, so the script blanks that tag. It then puts `propsys.dll` next to the helpers, puts `windows.devices.enumeration.dll` in the prefix's `system32`/`syswow64` (keeping the originals as `.orig`), and sets `native,builtin` overrides for `CricutDevice.exe` and `CricutDeviceIO.exe` only.
+Two Wine details shape this script. `WINEDLLPATH` can't override a built-in DLL, because Wine searches its own DLL folder first. And Wine swaps any file tagged "Wine builtin DLL" for its stock copy, so the script blanks that tag. It then puts `propsys.dll` next to the helpers, puts `windows.devices.enumeration.dll` and `gdiplus.dll` in the prefix's `system32`/`syswow64` (keeping the originals as `.orig`), and sets `native,builtin` overrides for `CricutDevice.exe`, `CricutDeviceIO.exe` and `CricutSystemPrinter.exe` only. `gdiplus` has to go in the system folder: it's one of Wine's "known DLLs", which are always loaded from there and stay mapped until `wineserver` stops, so restart Design Space after installing.
 
 The DLLs are saved in `~/Games/cricut/patched-dlls`, so after the first run you can delete `~/cricut-wine`. After a **Wine** update, rebuild from the matching Wine source and pass the new build folder.
 
@@ -178,6 +184,8 @@ It applies the next time Design Space starts. Move the window with the app's own
 | Connect worked before, fails after Design Space changed version | Design Space updates (or downgrades) itself to the version Cricut assigns your account, which replaces the plugin folders and removes the patched `propsys.dll` | `scripts/install-patched-dlls.sh` |
 | Spinner never stops, or works once and not after a power cycle | Port is in terminal mode | Step 5 |
 | App's top toolbar is hidden | Linux title bar on top of the app's own | Step 6 |
+| "The Print Then Cut operation is not supported in this project" on an image | The project's type doesn't allow printing (a Design Space setting, not Wine) | Start from **Blank Canvas** |
+| Print Then Cut page prints black around the design, no registration marks | Wine's `gdiplus` (Step 4) | Rebuild with the current patch, run `scripts/install-patched-dlls.sh <build folder>`, restart Design Space |
 
 To see what the helper does, start Design Space from a terminal with serial and file logging and search the log for `COM3`:
 
@@ -190,11 +198,12 @@ The log gets large (hundreds of MB) within minutes, so use it for one test. It c
 
 ## Upstream status
 
-None of this is in Wine yet. The patch fills gaps in Wine rather than adding Cricut-specific hacks, so it's a good candidate for upstream; once Wine includes it, Step 4 goes away. Steps 3 and 5 would need Wine changes too: registering USB serial devices with a COM port, and putting serial ports in raw mode on open.
+None of this is in Wine yet. The patch fills gaps in Wine rather than adding Cricut-specific hacks (the `gdiplus` fix helps any program that prints images with transparency), so it's a good candidate for upstream; once Wine includes it, Step 4 goes away. Steps 3 and 5 would need Wine changes too: registering USB serial devices with a COM port, and putting serial ports in raw mode on open.
 
 Open questions:
 
 - Bluetooth connection is untested. Wine's `BluetoothAdapter.GetRadioAsync` is still a stub.
+- Print Then Cut: the page prints correctly; the Explore Air 2 reading the registration marks and cutting hasn't been tested yet.
 - Only the Explore Air 2 was tested. Reports from other machines (Maker, Joy, Explore 3) are welcome.
 
 ## License
