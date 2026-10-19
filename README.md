@@ -29,6 +29,7 @@ Other Cricut machines should work the same way if they show up as a USB serial p
 
 | File | What it does |
 | --- | --- |
+| `scripts/download-installer.sh` | Downloads and verifies the current Design Space installer (Step 1) |
 | `scripts/cricut-design-space` | Launcher (Step 2) |
 | `scripts/install-launcher.sh` | Installs the launcher, menu entry and `cricut://` handler; removes Wine's shortcuts (Step 2) |
 | `scripts/cricut-registry.sh` | Registers the cutter as a USB serial device on COM3 (Step 3) |
@@ -40,15 +41,16 @@ All scripts use the prefix `~/Games/cricut`. Set `WINEPREFIX` to use another one
 
 ## Step 1: Install Design Space in its own prefix
 
-Use a fresh 64-bit prefix. No winetricks or extra runtimes are needed. Download the installer from design.cricut.com; it's a small web installer that fetches the real app.
+Use a fresh 64-bit prefix. No winetricks or extra runtimes are needed, and no Windows PC: `scripts/download-installer.sh` reads Cricut's public update manifest (`software.cricut.com/prod/win32-x64/latest.json`), downloads the current full installer (about 360 MB) and checks its SHA-512 hash.
 
 ```bash
+./scripts/download-installer.sh ~/Downloads
 export WINEPREFIX="$HOME/Games/cricut"
 wineboot -i
-wine "$HOME/Downloads/Install Cricut Design Space.exe" /S
+wine ~/Downloads/CricutDesignSpace-Install-v*.exe /S
 ```
 
-`/S` installs silently, per user, to `drive_c/users/$USER/AppData/Local/Programs/Cricut Design Space`. Don't start it from the shortcuts the installer makes; Step 2 replaces them.
+`/S` installs silently, per user, to `drive_c/users/$USER/AppData/Local/Programs/Cricut Design Space`. The small web installer from design.cricut.com works the same way. Don't start Design Space from the shortcuts the installer makes; Step 2 replaces them.
 
 ## Step 2: Launcher, menu entry and web login
 
