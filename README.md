@@ -25,6 +25,18 @@ Bluetooth was not tested and probably doesn't work: Wine's Bluetooth support for
 
 Other Cricut machines should work the same way if they show up as a USB serial port (`/dev/ttyACM*`). The patch is against Wine 11.17 but is small enough to apply to nearby versions.
 
+### Design Space versions
+
+| Version | Result (2026-10-19) |
+| --- | --- |
+| 10.7.106 | Works: sign-in, USB connect and cutting, including after power cycles |
+| 10.8.81 | Installs silently with `/S` from the full installer. Its device helpers are new builds but use the same Windows property names, so the patch should cover them. Cutting untested: the app downgraded itself to 10.7.106 within minutes (see below) |
+
+**Design Space picks its own version.** `latest.json` lists the newest release, but the app follows the version Cricut assigns your account and will update or downgrade itself to match. Installing a newer version than your account's just gets reverted. Any version change, either way:
+
+- replaces the plugin folders, which removes the patched `propsys.dll` (re-run `scripts/install-patched-dlls.sh`)
+- drops a raw `Cricut Design Space.lnk` on your desktop (`scripts/install-launcher.sh` removes it)
+
 ## What's in this repo
 
 | File | What it does |
