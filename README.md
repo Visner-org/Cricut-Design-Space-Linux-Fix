@@ -194,6 +194,8 @@ sudo chattr +i "$U"
 
 A plain `chmod` isn't enough: Wine clears the read-only flag on files you own before deleting them. The immutable flag (`chattr +i`, root only) stops Wine from writing, deleting or changing the folder. The `LOCKED.txt` inside keeps it from being an empty folder.
 
+Tested 2026-10-19 on 10.7.106: with the lock on, Wine can't create `installer.exe` in the folder or delete it, and Design Space runs normally. Check the lock with `lsattr -d "$U"` (an `i` means it's on).
+
 If Cricut ever makes an update mandatory, Design Space may refuse to run. Undo the lock with `sudo chattr -i "$U"`, let it update, then run `scripts/install-patched-dlls.sh` again.
 
 ## Print Then Cut: start from Blank Canvas
