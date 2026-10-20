@@ -1,6 +1,6 @@
 # Cricut Design Space on Linux (Wine)
 
-Cricut Design Space 10.7 runs under Wine on Linux and cuts over USB. Sign-in, designing, connecting the machine, cutting and Print Then Cut all work on an Explore Air 2. No Windows VM needed.
+Cricut Design Space 10.7 runs under Wine on Linux and cuts over USB. Sign-in, designing, connecting the machine, cutting and Print Then Cut all work on an Explore Air 2. No Windows VM needed. Tested on Nobara, Ubuntu 26.04, CachyOS and Bazzite.
 
 > **Made by AI.** The investigation, every script, the Wine patch and this README were done by an AI assistant, Claude (Anthropic), working on my PC. I set the goal, ran the tests with my own machine, reported what I saw, and checked that it cuts. Read the scripts before running them, and treat the patch as untested beyond the setup below.
 
@@ -27,7 +27,19 @@ Bluetooth was not tested and probably doesn't work: Wine's Bluetooth support for
 | Browser for login | Firefox (Flatpak) |
 | Printer | Epson ET-4760 and a CUPS PDF printer |
 
-Other Cricut machines should work the same way if they show up as a USB serial port (`/dev/ttyACM*`). There are two versions of the patch: one for Wine 11.17 (development) and one for 11.0 (the current stable release). The 11.0 one builds but hasn't been run with Design Space yet.
+Other Cricut machines should work the same way if they show up as a USB serial port (`/dev/ttyACM*`). There are two versions of the patch: one for Wine development releases (made on 11.17, also tested on 11.20) and one for 11.0 (the current stable release). The 11.0 one builds but hasn't been run with Design Space yet.
+
+### Other distros
+
+Tested 2026-10-20 in virtual machines with the Explore Air 2 passed through over USB, Design Space 10.8.81:
+
+| Distro | Wine | Result |
+| --- | --- | --- |
+| Ubuntu 26.04 LTS (GNOME) | WineHQ `winehq-staging` 11.20 | Installs, signs in (Snap Firefox), connects |
+| CachyOS (KDE) | `wine-staging` 11.20 | Installs, signs in, connects |
+| Bazzite 44 (KDE) | WineHQ `winehq-staging` 11.20 in a distrobox | Installs, signs in (Flatpak Firefox), connects |
+
+Cutting and Print Then Cut were tested on Nobara only. How to get Wine on each: [Before you start: install Wine](#before-you-start-install-wine).
 
 ### Design Space versions
 
@@ -51,12 +63,54 @@ To stay on a version that works, see [Optional: stop automatic updates](#optiona
 | `scripts/cricut-design-space` | Launcher (Step 2) |
 | `scripts/install-launcher.sh` | Installs the launcher, menu entry and `cricut://` handler; removes Wine's shortcuts (Step 2) |
 | `scripts/cricut-registry.sh` | Registers the cutter as a USB serial device on COM3 (Step 3) |
-| `patches/wine-cricut.patch` | Wine patch for `propsys`, `windows.devices.enumeration` and `gdiplus`, for Wine 11.17 (Step 4) |
+| `patches/wine-cricut.patch` | Wine patch for `propsys`, `windows.devices.enumeration` and `gdiplus`, for Wine development releases (11.17, 11.20) (Step 4) |
 | `patches/wine-11.0-cricut.patch` | The same patch for Wine 11.0 stable (Step 4) |
 | `scripts/install-patched-dlls.sh` | Installs the patched DLLs for Design Space's helpers only (Step 4) |
 | `udev/99-cricut-raw.rules` | Puts the cutter's serial port in raw mode (Step 5) |
 
 All scripts use the prefix `~/Games/cricut`. Set `WINEPREFIX` to use another one.
+
+## Before you start: install Wine
+
+Use Wine Staging, version 11.17 or newer (11.20 tested). Step 4 builds three DLLs from the same Wine version, so note which one you get (`wine --version`).
+
+**Fedora and Nobara**: WineHQ's packages.
+
+```bash
+sudo dnf config-manager addrepo --from-repofile=https://dl.winehq.org/wine-builds/fedora/44/winehq.repo
+sudo dnf install winehq-staging
+```
+
+**Ubuntu 26.04**: WineHQ's packages. WineHQ's own instructions fail on 26.04 because apt won't read their key file as downloaded; converting it with `gpg --dearmor` fixes that.
+
+```bash
+sudo dpkg --add-architecture i386
+sudo mkdir -pm755 /etc/apt/keyrings
+wget -qO- https://dl.winehq.org/wine-builds/winehq.key | sudo gpg --dearmor -o /etc/apt/keyrings/winehq-archive.key
+sudo wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/resolute/winehq-resolute.sources
+sudo apt update && sudo apt install --install-recommends winehq-staging
+```
+
+**CachyOS** (and probably Arch): the distro's package. CachyOS also has `wine-cachyos`, which is older (10.0 based) and untested here.
+
+```bash
+sudo pacman -S wine-staging
+```
+
+**Bazzite** (and other immutable Fedora-based distros): Bazzite has no Wine and discourages adding packages to the system, so install it in a [distrobox](https://distrobox.it/) and export the `wine` and `wineserver` commands to the host. The scripts then run unchanged.
+
+```bash
+distrobox create -n cricut -i registry.fedoraproject.org/fedora-toolbox:44
+distrobox enter cricut
+# inside the box:
+sudo dnf config-manager addrepo --from-repofile=https://dl.winehq.org/wine-builds/fedora/44/winehq.repo
+sudo dnf install winehq-staging xdg-utils
+distrobox-export --bin /opt/wine-staging/bin/wine --export-path ~/.local/bin
+distrobox-export --bin /opt/wine-staging/bin/wineserver --export-path ~/.local/bin
+exit
+```
+
+The box shares your home folder, so the prefix, scripts and Design Space's files are the same inside and out. Wine in the box can open the cutter's port as long as your user is in `dialout` on the host (Step 3).
 
 ## Step 1: Install Design Space in its own prefix
 
@@ -65,9 +119,12 @@ Use a fresh 64-bit prefix. No winetricks or extra runtimes are needed, and no Wi
 ```bash
 ./scripts/download-installer.sh ~/Downloads
 export WINEPREFIX="$HOME/Games/cricut"
-wineboot -i
+mkdir -p ~/Games
+WINEDLLOVERRIDES="mscoree,mshtml=" wine wineboot -i
 wine ~/Downloads/CricutDesignSpace-Install-v*.exe /S
 ```
+
+Wine won't create the prefix if `~/Games` doesn't exist. The `WINEDLLOVERRIDES` line skips Wine's prompts to install Mono and Gecko: Design Space doesn't need either, and while the Mono prompt waits for a click, the installer fails (`could not load kernel32.dll`).
 
 `/S` installs silently, per user, to `drive_c/users/$USER/AppData/Local/Programs/Cricut Design Space`. The small web installer from design.cricut.com works the same way. Don't start Design Space from the shortcuts the installer makes; Step 2 replaces them.
 
@@ -81,13 +138,15 @@ This installs `~/.local/bin/cricut-design-space` and a **Cricut Design Space** m
 
 Always start Design Space through this launcher. Electron's main process crashes under Wine with "A JavaScript error occurred in the main process … open EBADF … process.getStderr" when it has no real stdout/stderr, which is the case whenever it starts from a menu, desktop icon or browser link. The launcher sends output to `~/Games/cricut/cricut-design-space.log`. It also sets `winemenubuilder.exe=d` so Design Space updates don't recreate Wine's shortcuts.
 
-The script removes the shortcuts the installer created through Wine (desktop icon or `.lnk` file, Wine menu entry, and this prefix's `wine-extension-*.desktop` file associations), since those call `wine` directly and hit the crash.
+The script removes the shortcuts the installer created through Wine (desktop icon or `.lnk` file, Wine menu entry, and this prefix's `wine-extension-*.desktop` file associations), since those call `wine` directly and hit the crash. Wine writes them a few seconds after the installer exits, so the script waits for that first.
+
+If `wine` is a distrobox export (Bazzite), the menu entry runs the launcher inside the box. Run through the exported `wine` instead, Wine would get its output through a pipe from the container rather than a file, and crash with the same EBADF error.
 
 Sign-in opens in your browser, which then hands a `cricut://?code=…` link back to the app. When the browser asks to open the link, allow it. A second copy of the app starts, passes the code to the open window and exits. This works from a Flatpak browser too.
 
 ## Step 3: Make Design Space see the cutter
 
-On Linux the Explore Air 2 is a plain USB serial port: the `cdc_acm` driver creates `/dev/ttyACM0`. Your user must be in the `dialout` group to open it (`id -nG`; if it's missing, `sudo usermod -aG dialout $USER`, then log out and back in).
+On Linux the Explore Air 2 is a plain USB serial port: the `cdc_acm` driver creates `/dev/ttyACM0`. Your user must be in the `dialout` group to open it (`id -nG`; if it's missing, `sudo usermod -aG dialout $USER`, then log out and back in). On Arch and CachyOS the group is `uucp` instead: `sudo usermod -aG uucp $USER`.
 
 Design Space doesn't scan COM ports. It asks Windows for a USB device with Cricut's vendor ID (`20D3`), then reads that device's `PortName`. Wine doesn't register the Cricut that way, so the search comes back empty and the app never tries the port.
 
@@ -112,26 +171,38 @@ Print Then Cut hits a third gap. Design Space's printer helper, `plugins/system-
 
 You only rebuild these three DLLs, not all of Wine, and they're used by Design Space's helpers alone. Your system Wine stays untouched.
 
-### Prebuilt DLLs (Wine 11.17 only)
+### Prebuilt DLLs (Wine 11.17 and 11.20)
 
-On Wine 11.17 you can skip the build: download `cricut-wine-11.17-patched-dlls.zip` from the [latest release](https://github.com/Visner-org/Cricut-Design-Space-Linux-Fix/releases/latest), unpack it, and pass its folder to the install script (see Install below) instead of a build folder. For any other Wine version, build them from source.
+On Wine 11.17 or 11.20 you can skip the build: download `cricut-wine-11.17-patched-dlls.zip` or `cricut-wine-11.20-patched-dlls.zip` from the [releases](https://github.com/Visner-org/Cricut-Design-Space-Linux-Fix/releases), unpack it, and pass its folder to the install script (see Install below) instead of a build folder. For any other Wine version, build them from source.
 
 ### Build
 
-Use the Wine source that matches `wine --version`, and the matching patch: `wine-cricut.patch` for 11.17, `wine-11.0-cricut.patch` for 11.0. On 11.0, swap `11.x/wine-11.17` for `11.0/wine-11.0` in the download URL and `wine-11.17` for `wine-11.0` in the commands below. You need `gcc`, `make`, `flex`, `bison` and `patch`; the Windows cross-compiler comes from [llvm-mingw](https://github.com/mstorsjo/llvm-mingw/releases), so no sudo is needed. After the downloads, configuring and building take under a minute and about 1.3 GB of disk.
+Use the Wine source that matches `wine --version`, and the matching patch: `wine-cricut.patch` for development releases (11.17, 11.20), `wine-11.0-cricut.patch` for 11.0. Set `V` below to your version. On 11.0, also swap `11.x` for `11.0` in the download URL and use `wine-11.0-cricut.patch`.
+
+You need `gcc`, `make`, `flex`, `bison` and `patch`:
+
+| Distro | Command |
+| --- | --- |
+| Fedora, Nobara | `sudo dnf install gcc make flex bison patch` |
+| Ubuntu | `sudo apt install gcc make flex bison patch` |
+| CachyOS, Arch | `sudo pacman -S --needed gcc make flex bison patch` |
+| Bazzite | inside the box: `sudo dnf install gcc make flex bison patch`, then run the build there (`distrobox enter cricut`) |
+
+The Windows cross-compiler comes from [llvm-mingw](https://github.com/mstorsjo/llvm-mingw/releases), so no sudo is needed for the build itself. After the downloads, configuring and building take under a minute and about 1.3 GB of disk.
 
 ```bash
 REPO="$PWD"    # run from this repo's folder
+V=11.20        # your Wine version (wine --version)
 mkdir -p ~/cricut-wine && cd ~/cricut-wine
-curl -LO https://dl.winehq.org/wine/source/11.x/wine-11.17.tar.xz
+curl -LO https://dl.winehq.org/wine/source/11.x/wine-$V.tar.xz
 curl -LO https://github.com/mstorsjo/llvm-mingw/releases/download/20260922/llvm-mingw-20260922-ucrt-ubuntu-22.04-x86_64.tar.xz
-tar xf wine-11.17.tar.xz
+tar xf wine-$V.tar.xz
 tar xf llvm-mingw-20260922-ucrt-ubuntu-22.04-x86_64.tar.xz
 export PATH="$PWD/llvm-mingw-20260922-ucrt-ubuntu-22.04-x86_64/bin:$PATH"
-(cd wine-11.17 && patch -p1 < "$REPO/patches/wine-cricut.patch")
+(cd wine-$V && patch -p1 < "$REPO/patches/wine-cricut.patch")
 
 mkdir build && cd build
-../wine-11.17/configure --enable-archs=i386,x86_64 --disable-tests \
+../wine-$V/configure --enable-archs=i386,x86_64 --disable-tests \
   --without-x --without-wayland --without-freetype --without-fontconfig \
   --without-vulkan --without-opengl --without-gstreamer --without-ffmpeg \
   --without-pulse --without-alsa --without-oss --without-coreaudio \
@@ -210,7 +281,13 @@ Plain shapes in a solid color still work in those projects, which makes it look 
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
+| `apt update` on Ubuntu: "The key(s) in the keyring … winehq-archive.key are ignored as the file has an unsupported filetype" | apt on 26.04 won't read WineHQ's key as downloaded | Convert it with `gpg --dearmor` ([Before you start](#before-you-start-install-wine)) |
+| `wine: chdir to …/Games/cricut : No such file or directory` | `~/Games` doesn't exist | `mkdir -p ~/Games` (Step 1) |
+| "Wine Mono Installer" pops up, or the installer fails with `could not load kernel32.dll` | Wine is asking to install Mono; the installer ran before the prefix was ready | Start over with a fresh prefix and the `WINEDLLOVERRIDES` line from Step 1 |
 | "A JavaScript error occurred in the main process … open EBADF" | Started without the launcher (desktop icon, Wine menu entry, browser) | Step 2 |
+| The same EBADF error on Bazzite, from the menu | The menu entry runs the exported `wine` outside the box | Run `scripts/install-launcher.sh` again after exporting `wine` ([Before you start](#before-you-start-install-wine)) |
+| `usermod: group 'dialout' does not exist` | Arch and CachyOS use `uucp` for serial ports | `sudo usermod -aG uucp $USER` (Step 3) |
+| Sign-in opens the page as text in an editor | No default web browser is set | Set one in your desktop's settings |
 | Browser sign-in finishes but the app never logs in | No `cricut://` handler, or the browser blocked it | Step 2; allow the browser to open the link |
 | Design Space never finds the machine | Missing registry entries, or the port belongs to something else (a VM, another app) | Step 3, then restart Design Space; check `/dev/ttyACM0` exists and you're in `dialout` |
 | "USB Connection Failed" right away | The device helper keeps quitting (log shows `NativePluginDeviceCommonService … Exit Code 5`) | Step 4 |

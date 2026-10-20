@@ -15,18 +15,29 @@ install -m 755 "$(dirname "$0")/cricut-design-space" "$BIN/cricut-design-space"
 # Bake in the prefix so a non-default WINEPREFIX keeps working from the menu
 sed -i "s|^export WINEPREFIX=.*|export WINEPREFIX=\"$WINEPREFIX\" WINEDEBUG=-all WINEDLLOVERRIDES=\"winemenubuilder.exe=d\"|" "$BIN/cricut-design-space"
 
+# Wine exported from a distrobox (Bazzite and other immutable distros): run the whole
+# launcher inside the box, so its log redirect gives Wine a real file, not a podman pipe (EBADF)
+EXEC="$BIN/cricut-design-space %u"
+WINE_BIN="$(command -v wine || true)"
+if [ -n "$WINE_BIN" ] && grep -q '^# distrobox_binary' "$WINE_BIN"; then
+    BOX="$(sed -n 's/^# name: //p' "$WINE_BIN")"
+    EXEC="distrobox enter $BOX -- $EXEC"
+fi
+
 cat > "$APPS/cricut-design-space.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
 Name=Cricut Design Space
 Comment=Cricut Design Space (Wine)
-Exec=$BIN/cricut-design-space %u
+Exec=$EXEC
 Icon=applications-graphics
 Categories=Graphics;
 MimeType=x-scheme-handler/cricut;
 StartupWMClass=cricut design space.exe
 DESKTOP
 
+# Wine writes the installer's shortcuts a few seconds after it exits; wait so they aren't recreated after cleanup
+for _ in $(seq 30); do pgrep -f winemenubuilder >/dev/null || break; sleep 1; done
 rm -f "$DESKTOP_DIR/Cricut Design Space.desktop" "$DESKTOP_DIR/Cricut Design Space.lnk" \
       "$APPS/wine/Programs/Cricut Design Space.desktop"
 # Wine's file associations for this prefix (.reg, .chm, .vbs, ...)
