@@ -16,6 +16,52 @@ Out of the box it fails in several places. These are the fixes, in the order you
 
 Bluetooth was not tested and probably doesn't work: Wine's Bluetooth support for apps is mostly stubs.
 
+## Quick start
+
+The short version for Wine 11.17 or 11.20. Steps 1–6 below explain each command; if something goes wrong, see [Troubleshooting](#troubleshooting).
+
+1. Install Wine Staging 11.17 or 11.20 ([commands for each distro](#before-you-start-install-wine)). Check with `wine --version`.
+2. Let your user open the cutter's port, then log out and back in:
+   `sudo usermod -aG dialout $USER` (on Arch and CachyOS: `uucp` instead of `dialout`).
+3. From the [releases](https://github.com/Visner-org/Cricut-Design-Space-Linux-Fix/releases), download the DLL zip that matches your Wine version and unpack it in `~/Downloads`. On another Wine version, build the DLLs yourself ([Step 4](#step-4-patch-three-wine-dlls)).
+4. Get this repo and run these from its folder:
+
+   ```bash
+   # Step 1: install Design Space
+   ./scripts/download-installer.sh ~/Downloads
+   export WINEPREFIX="$HOME/Games/cricut"
+   mkdir -p ~/Games
+   WINEDLLOVERRIDES="mscoree,mshtml=" wine wineboot -i
+   wine ~/Downloads/CricutDesignSpace-Install-v*.exe /S
+
+   # Step 2: launcher, menu entry and web login
+   ./scripts/install-launcher.sh
+
+   # Step 4: patched DLLs (use the folder you unpacked)
+   wineserver -k
+   ./scripts/install-patched-dlls.sh ~/Downloads/cricut-wine-11.20-patched-dlls
+
+   # Step 5: serial port in raw mode
+   sudo cp udev/99-cricut-raw.rules /etc/udev/rules.d/
+   sudo udevadm control --reload
+
+   # Step 6: hide the Linux title bar
+   wine reg add 'HKCU\Software\Wine\X11 Driver' /v Decorated /d N /f
+   ```
+
+5. Plug in the cutter and switch it on (off and on again if it was already on). Then:
+
+   ```bash
+   # Step 3: let Design Space find the cutter
+   ./scripts/cricut-registry.sh
+   ```
+
+6. Start **Cricut Design Space** from your app menu and sign in. When the browser asks to open the `cricut://` link, allow it.
+
+When Design Space changes version by itself, run `./scripts/install-patched-dlls.sh` again (no folder needed). Don't block its updates ([why](#updates-let-them-happen)). For Print Then Cut, start projects from [Blank Canvas](#print-then-cut-start-from-blank-canvas).
+
+The rest of this README is the detailed version.
+
 ## Tested setup
 
 | Part | Version |
@@ -53,7 +99,7 @@ Cutting and Print Then Cut were tested on Nobara only. How to get Wine on each: 
 - replaces the plugin folders, which removes the patched `propsys.dll` (re-run `scripts/install-patched-dlls.sh`; the patched `gdiplus` lives in the prefix's system folder and stays)
 - drops a raw `Cricut Design Space.lnk` on your desktop (`scripts/install-launcher.sh` removes it)
 
-To stay on a version that works, see [Optional: stop automatic updates](#optional-stop-automatic-updates).
+Blocking updates doesn't help: see [Updates: let them happen](#updates-let-them-happen).
 
 ## What's in this repo
 
@@ -250,24 +296,9 @@ WINEPREFIX="$HOME/Games/cricut" wine reg add 'HKCU\Software\Wine\X11 Driver' /v 
 
 It applies the next time Design Space starts. Move the window with the app's own title bar, or with your desktop's shortcuts (Alt+drag on KDE).
 
-## Optional: stop automatic updates
+## Updates: let them happen
 
-Design Space needs the internet to sign in, open saved projects and upload images, so don't block it entirely. Block only its updates: every update or downgrade is downloaded to one folder, `AppData/Local/app-desktop-design-updater`, as `installer.exe`. Lock that folder and no update can land.
-
-```bash
-U="$HOME/Games/cricut/drive_c/users/$USER/AppData/Local/app-desktop-design-updater"
-mkdir -p "$U" ~/Games/cricut/installers
-# Keep a cached installer, if there is one: it's usually the version you're running
-[ -f "$U/installer.exe" ] && mv "$U/installer.exe" ~/Games/cricut/installers/
-echo "Locked so Design Space can't download updates. Undo: sudo chattr -i on this folder." > "$U/LOCKED.txt"
-sudo chattr +i "$U"
-```
-
-A plain `chmod` isn't enough: Wine clears the read-only flag on files you own before deleting them. The immutable flag (`chattr +i`, root only) stops Wine from writing, deleting or changing the folder. The `LOCKED.txt` inside keeps it from being an empty folder.
-
-Tested 2026-10-19 on 10.7.106: with the lock on, Wine can't create `installer.exe` in the folder or delete it, and Design Space runs normally. Check the lock with `lsattr -d "$U"` (an `i` means it's on).
-
-If Cricut ever makes an update mandatory, Design Space may refuse to run. Undo the lock with `sudo chattr -i "$U"`, let it update, then run `scripts/install-patched-dlls.sh` again.
+Don't try to block Design Space updates. It checks with Cricut when it starts and runs the version Cricut assigns your account. Reports say it won't start on an older one, so blocking updates can't keep you on a version. It only stops the app from getting the version it needs. After each version change, run `scripts/install-patched-dlls.sh` again.
 
 ## Print Then Cut: start from Blank Canvas
 
@@ -295,7 +326,6 @@ Plain shapes in a solid color still work in those projects, which makes it look 
 | Spinner never stops, or works once and not after a power cycle | Port is in terminal mode | Step 5 |
 | App's top toolbar is hidden | Linux title bar on top of the app's own | Step 6 |
 | "The Print Then Cut operation is not supported in this project" on an image | The project's type doesn't allow printing (a Design Space setting, not Wine) | Start from **Blank Canvas**; see [Print Then Cut](#print-then-cut-start-from-blank-canvas) |
-| Design Space won't start, asks for an update you can't install | Updates are locked ([Optional: stop automatic updates](#optional-stop-automatic-updates)) and Cricut made one mandatory | `sudo chattr -i` the updater folder, let it update, run `scripts/install-patched-dlls.sh` |
 | Print Then Cut page prints black around the design, no registration marks | Wine's `gdiplus` (Step 4) | Rebuild with the current patch, run `scripts/install-patched-dlls.sh <build folder>`, restart Design Space |
 
 To see what the helper does, start Design Space from a terminal with serial and file logging and search the log for `COM3`:

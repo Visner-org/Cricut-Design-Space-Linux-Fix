@@ -18,7 +18,7 @@ Tested setup: Nobara 44, WineHQ `wine-staging` 11.17, Design Space 10.7.106, Exp
   - `gdiplus`: Print Then Cut (`plugins/system-printer/CricutSystemPrinter.exe`) printed transparency as black.
   - Two versions of the same patch, kept in sync: `wine-cricut.patch` (Wine 11.17) and `wine-11.0-cricut.patch` (11.0 stable, built but not run with Design Space). They're `git format-patch` style, applied with `patch -p1` in the Wine source tree.
 - `scripts/install-patched-dlls.sh` takes a Wine build folder (`dlls/<name>/{i386,x86_64}-windows/`) or the unpacked prebuilt release zip (`x86/`, `x64/`), saves copies in `$WINEPREFIX/patched-dlls`, blanks the "Wine builtin DLL" marker at offset 0x40 so Wine won't swap in its stock copy, puts `propsys.dll` next to the helpers and the other two in `system32`/`syswow64` (originals kept as `.orig`; `gdiplus` is a known DLL so it must live there), and sets `native,builtin` overrides per helper exe. With no argument it reinstalls the saved copies; needed after every Design Space version change, since that replaces the plugin folders.
-- Design Space updates/downgrades itself to the version Cricut assigns the account. The README's optional update lock is `chattr +i` on `AppData/Local/app-desktop-design-updater`.
+- Design Space updates/downgrades itself to the version Cricut assigns the account. Don't suggest blocking updates (`chattr +i` on `AppData/Local/app-desktop-design-updater` was dropped): the app reportedly won't start on a version other than the assigned one.
 
 ## Building the patched DLLs
 
