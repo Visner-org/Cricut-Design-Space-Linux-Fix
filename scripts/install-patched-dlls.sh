@@ -38,16 +38,17 @@ if b[0x40:0x50] == b"Wine builtin DLL":
 PY
 done
 
-# propsys: loaded from the helper's own folder (CricutDevice.exe is 32-bit, CricutDeviceIO.exe 64-bit)
+# propsys: Wine 11.17 loads it from the helper's own folder (CricutDevice.exe is 32-bit,
+# CricutDeviceIO.exe 64-bit); Wine 11.21 loads it from the system folder, so it goes in both places.
 cp "$OUT/x86/propsys.dll" "$P/device-common/"
 cp "$OUT/x86/propsys.dll" "$P/device-common-next/"
 cp "$OUT/x64/propsys.dll" "$P/cricut-device-io/"
 
-# windows.devices.enumeration: WinRT loads it by full system path.
+# propsys: see above. windows.devices.enumeration: WinRT loads it by full system path.
 # gdiplus: a Wine "known DLL", always loaded from the system folder, so a copy next to the helper is ignored.
 for pair in "syswow64:x86" "system32:x64"; do
     dir=${pair%%:*}; arch=${pair##*:}
-    for dll in windows.devices.enumeration gdiplus; do
+    for dll in propsys windows.devices.enumeration gdiplus; do
         [ -f "$W/$dir/$dll.dll.orig" ] || cp "$W/$dir/$dll.dll" "$W/$dir/$dll.dll.orig"
         cp "$OUT/$arch/$dll.dll" "$W/$dir/"
     done

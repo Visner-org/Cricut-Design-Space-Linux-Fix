@@ -96,7 +96,7 @@ Cutting and Print Then Cut were tested on Nobara only. How to get Wine on each: 
 
 **Design Space picks its own version.** `latest.json` lists the newest release, but the app follows the version Cricut assigns your account and will update or downgrade itself to match. Installing a newer version than your account's just gets reverted. Any version change, either way:
 
-- replaces the plugin folders, which removes the patched `propsys.dll` (re-run `scripts/install-patched-dlls.sh`; the patched `gdiplus` lives in the prefix's system folder and stays)
+- replaces the plugin folders, which removes the patched `propsys.dll` next to the helpers (re-run `scripts/install-patched-dlls.sh`; the copies in the prefix's system folder stay)
 - drops a raw `Cricut Design Space.lnk` on your desktop (`scripts/install-launcher.sh` removes it)
 
 Blocking updates doesn't help: see [Updates: let them happen](#updates-let-them-happen).
@@ -118,7 +118,7 @@ All scripts use the prefix `~/Games/cricut`. Set `WINEPREFIX` to use another one
 
 ## Before you start: install Wine
 
-Use Wine Staging, version 11.17 or newer (11.20 tested). Step 4 builds three DLLs from the same Wine version, so note which one you get (`wine --version`).
+Use Wine Staging, version 11.17 or newer (11.20 tested; 11.21 connects with the 11.17 DLLs, cutting untested). Step 4 builds three DLLs from the same Wine version, so note which one you get (`wine --version`).
 
 **Fedora and Nobara**: WineHQ's packages.
 
@@ -269,7 +269,7 @@ wineserver -k
 "$REPO/scripts/install-patched-dlls.sh"                       # after a Design Space update
 ```
 
-Two Wine details shape this script. `WINEDLLPATH` can't override a built-in DLL, because Wine searches its own DLL folder first. And Wine swaps any file tagged "Wine builtin DLL" for its stock copy, so the script blanks that tag. It then puts `propsys.dll` next to the helpers, puts `windows.devices.enumeration.dll` and `gdiplus.dll` in the prefix's `system32`/`syswow64` (keeping the originals as `.orig`), and sets `native,builtin` overrides for `CricutDevice.exe`, `CricutDeviceIO.exe` and `CricutSystemPrinter.exe` only. `gdiplus` has to go in the system folder: it's one of Wine's "known DLLs", which are always loaded from there and stay mapped until `wineserver` stops, so restart Design Space after installing.
+Two Wine details shape this script. `WINEDLLPATH` can't override a built-in DLL, because Wine searches its own DLL folder first. And Wine swaps any file tagged "Wine builtin DLL" for its stock copy, so the script blanks that tag. It then puts `propsys.dll` next to the helpers, puts all three DLLs in the prefix's `system32`/`syswow64` (keeping the originals as `.orig`), and sets `native,builtin` overrides for `CricutDevice.exe`, `CricutDeviceIO.exe` and `CricutSystemPrinter.exe` only. `gdiplus` has to go in the system folder: it's one of Wine's "known DLLs", which are always loaded from there and stay mapped until `wineserver` stops, so restart Design Space after installing. Wine 11.21 also loads `propsys` from the system folder, so the copy next to the helpers isn't enough there.
 
 The DLLs are saved in `~/Games/cricut/patched-dlls`, so after the first run you can delete `~/cricut-wine`. After a **Wine** update, rebuild from the matching Wine source and pass the new build folder.
 
@@ -323,6 +323,7 @@ Plain shapes in a solid color still work in those projects, which makes it look 
 | Design Space never finds the machine | Missing registry entries, or the port belongs to something else (a VM, another app) | Step 3, then restart Design Space; check `/dev/ttyACM0` exists and you're in `dialout` |
 | "USB Connection Failed" right away | The device helper keeps quitting (log shows `NativePluginDeviceCommonService … Exit Code 5`) | Step 4 |
 | Connect worked before, fails after Design Space changed version | Design Space updates (or downgrades) itself to the version Cricut assigns your account, which replaces the plugin folders and removes the patched `propsys.dll` | `scripts/install-patched-dlls.sh` |
+| Connect worked before, fails after a Wine update (log shows `Exit Code 5`) | Wine 11.21 loads `propsys` from the system folder; older versions of the install script only put it next to the helpers | Update this repo, close Design Space, run `scripts/install-patched-dlls.sh` |
 | Spinner never stops, or works once and not after a power cycle | Port is in terminal mode | Step 5 |
 | App's top toolbar is hidden | Linux title bar on top of the app's own | Step 6 |
 | "The Print Then Cut operation is not supported in this project" on an image | The project's type doesn't allow printing (a Design Space setting, not Wine) | Start from **Blank Canvas**; see [Print Then Cut](#print-then-cut-start-from-blank-canvas) |
