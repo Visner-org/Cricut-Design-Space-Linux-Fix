@@ -4,6 +4,9 @@ Cricut Design Space 10.7 runs under Wine on Linux and cuts over USB. Sign-in, de
 
 > **Made by AI.** The investigation, every script, the Wine patch and this README were done by an AI assistant, Claude (Anthropic), working on my PC. I set the goal, ran the tests with my own machine, reported what I saw, and checked that it cuts. Read the scripts before running them, and treat the patch as untested beyond the setup below.
 
+**Changes**
+- **2026-11-02:** Fix for Wine 11.21, where the cutter stopped connecting ("Exit Code 5" in the log). Pull the repo, close Design Space, run `wineserver -k`, then `./scripts/install-patched-dlls.sh`.
+
 Out of the box it fails in several places. These are the fixes, in the order you hit them:
 
 1. **Launches from the menu or browser crash** with `open EBADF`. The launcher sends the app's output to a file.
