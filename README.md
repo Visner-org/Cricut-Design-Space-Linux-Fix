@@ -88,7 +88,9 @@ Tested 2026-10-20 in virtual machines with the Explore Air 2 passed through over
 | CachyOS (KDE) | `wine-staging` 11.20 | Installs, signs in, connects |
 | Bazzite 44 (KDE) | WineHQ `winehq-staging` 11.20 in a distrobox | Installs, signs in (Flatpak Firefox), connects |
 
-Cutting and Print Then Cut were tested on Nobara only. How to get Wine on each: [Before you start: install Wine](#before-you-start-install-wine).
+A user also reported Linux Mint 22.3 on real hardware (2026-11-11, Maker 3, Design Space 10.11.128) with WineHQ's 11.20 packages unpacked into a folder: installs, signs in (Chrome), connects and cuts.
+
+Cutting and Print Then Cut were tested by the author on Nobara only. How to get Wine on each: [Before you start: install Wine](#before-you-start-install-wine).
 
 ### Design Space versions
 
@@ -139,6 +141,21 @@ wget -qO- https://dl.winehq.org/wine-builds/winehq.key | sudo gpg --dearmor -o /
 sudo wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/resolute/winehq-resolute.sources
 sudo apt update && sudo apt install --install-recommends winehq-staging
 ```
+
+**Linux Mint 22 and Ubuntu 24.04**, or any Debian-family system where you want to leave the installed Wine alone: unpack WineHQ's packages into a folder instead of installing them. Mint 22.3 ships Wine 9.0, which is too old, and this way nothing on the system changes and no root is needed for Wine itself. The device helper is a 32-bit program, so the 32-bit libraries still have to come from the distro:
+
+```bash
+sudo dpkg --add-architecture i386 && sudo apt update && sudo apt install wine32:i386
+mkdir -p ~/Games/wine-staging-11.20 && cd ~/Games/wine-staging-11.20
+base=https://dl.winehq.org/wine-builds/ubuntu/pool/main/w/wine-staging
+for f in wine-staging_11.20~noble-1_amd64.deb wine-staging-amd64_11.20~noble-1_amd64.deb wine-staging-i386_11.20~noble-1_i386.deb; do
+    wget "$base/$f" && dpkg-deb -x "$f" .
+done
+export PATH="$HOME/Games/wine-staging-11.20/opt/wine-staging/bin:$PATH"
+wine --version    # wine-11.20 (Staging)
+```
+
+Run the rest of this guide in that same terminal, so the scripts find this Wine. `scripts/install-launcher.sh` writes its folder into the launcher, so the menu entry uses it too. apt isn't checking these downloads; to verify them, compare `sha256sum` with the `SHA256` fields in WineHQ's [package index](https://dl.winehq.org/wine-builds/ubuntu/dists/noble/main/binary-amd64/Packages.gz). Used on Linux Mint 22.3 with a Maker 3: install, sign-in, connect and cutting.
 
 **CachyOS** (and probably Arch): the distro's package. CachyOS also has `wine-cachyos`, which is older (10.0 based) and untested here.
 
@@ -318,6 +335,7 @@ Plain shapes in a solid color still work in those projects, which makes it look 
 | `apt update` on Ubuntu: "The key(s) in the keyring … winehq-archive.key are ignored as the file has an unsupported filetype" | apt on 26.04 won't read WineHQ's key as downloaded | Convert it with `gpg --dearmor` ([Before you start](#before-you-start-install-wine)) |
 | `wine: chdir to …/Games/cricut : No such file or directory` | `~/Games` doesn't exist | `mkdir -p ~/Games` (Step 1) |
 | "Wine Mono Installer" pops up, or the installer fails with `could not load kernel32.dll` | Wine is asking to install Mono; the installer ran before the prefix was ready | Start over with a fresh prefix and the `WINEDLLOVERRIDES` line from Step 1 |
+| Works from the terminal, but the menu entry does nothing or the cutter isn't found | Wine is only on `PATH` in your terminal (unpacked packages), so the menu entry ran a different Wine | Run `scripts/install-launcher.sh` again from the terminal where `wine --version` shows the right one ([Before you start](#before-you-start-install-wine)) |
 | "A JavaScript error occurred in the main process … open EBADF" | Started without the launcher (desktop icon, Wine menu entry, browser) | Step 2 |
 | The same EBADF error on Bazzite, from the menu | The menu entry runs the exported `wine` outside the box | Run `scripts/install-launcher.sh` again after exporting `wine` ([Before you start](#before-you-start-install-wine)) |
 | `usermod: group 'dialout' does not exist` | Arch and CachyOS use `uucp` for serial ports | `sudo usermod -aG uucp $USER` (Step 3) |

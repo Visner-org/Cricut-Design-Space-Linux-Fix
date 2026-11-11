@@ -15,6 +15,15 @@ install -m 755 "$(dirname "$0")/cricut-design-space" "$BIN/cricut-design-space"
 # Bake in the prefix so a non-default WINEPREFIX keeps working from the menu
 sed -i "s|^export WINEPREFIX=.*|export WINEPREFIX=\"$WINEPREFIX\" WINEDEBUG=-all WINEDLLOVERRIDES=\"winemenubuilder.exe=d\"|" "$BIN/cricut-design-space"
 
+# Wine that is only on PATH in this shell (WineHQ's packages unpacked into a folder, a custom
+# build): the menu entry starts with the desktop's PATH and would run another Wine or none at all,
+# so bake this Wine's folder into the launcher.
+WINE_DIR="$(dirname "$(command -v wine || echo /usr/bin/wine)")"
+case ":/usr/bin:/bin:/usr/local/bin:$HOME/.local/bin:" in
+    *":$WINE_DIR:"*) ;;
+    *) sed -i "s|^export WINEPREFIX=|export PATH=\"$WINE_DIR:\$PATH\" WINEPREFIX=|" "$BIN/cricut-design-space" ;;
+esac
+
 # Wine exported from a distrobox (Bazzite and other immutable distros): run the whole
 # launcher inside the box, so its log redirect gives Wine a real file, not a podman pipe (EBADF)
 EXEC="$BIN/cricut-design-space %u"
