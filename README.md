@@ -86,6 +86,8 @@ Reported by a user on their own hardware, 2026-11-11:
 | --- | --- | --- |
 | Cricut Maker 3, USB `20d3:0028` | Linux Mint 22.3 (Ubuntu 24.04 base), WineHQ `wine-staging` 11.20, Design Space 10.11.128, DLLs built from `patches/wine-cricut.patch` | Installs, signs in (Chrome), connects over USB and cuts. Tested with Smart Paper Sticker Cardstock loaded without a mat, fine-point blade. Print Then Cut and Bluetooth untested |
 
+The same setup was then installed from scratch on a second Linux Mint 22.3 laptop, under a different user account, with the same Maker 3: it installs, signs in, connects and cuts.
+
 The Maker 3 shows up the same way as the Explore Air 2: `cdc_acm` creates `/dev/ttyACM0`, and `scripts/cricut-registry.sh` registers it unchanged (it reads the product ID from the device).
 
 ### Other distros
