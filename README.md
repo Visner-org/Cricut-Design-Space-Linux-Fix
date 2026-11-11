@@ -205,7 +205,7 @@ With the machine **on and plugged in** (the script reads its serial number from 
 ./scripts/cricut-registry.sh
 ```
 
-It maps COM3 to `/dev/ttyACM0` and adds the registry entries Windows would create: the device under `Enum\USB\VID_20D3&PID_…\<serial>` with `PortName=COM3`, plus the USB-device and COM-port interfaces marked as present. Restart Design Space afterwards, since it searches for USB devices only at startup. Without Step 4, connecting then fails with "USB Connection Failed".
+It finds the cutter's port (udev's `/dev/serial/by-id/usb-Cricut_Inc_…` link, falling back to `/dev/ttyACM0`; pass a path as an argument to override), maps COM3 to it and adds the registry entries Windows would create: the device under `Enum\USB\VID_20D3&PID_…\<serial>` with `PortName=COM3`, plus the USB-device and COM-port interfaces marked as present. Restart Design Space afterwards, since it searches for USB devices only at startup. Without Step 4, connecting then fails with "USB Connection Failed".
 
 ## Step 4: Patch three Wine DLLs
 
@@ -288,6 +288,8 @@ sudo udevadm control --reload
 ```
 
 Then switch the machine off and on. To check it, `stty -F /dev/ttyACM0 -a` should show `-icanon -icrnl -ixon`. To fix it for one session without the rule: `stty -F /dev/ttyACM0 raw -echo -echoe -echok -echoctl -echoke -hupcl`.
+
+The launcher also sets raw mode each time it starts, and re-points COM3 if the port came back under another name. That covers a missing rule at startup, but not a power cycle while Design Space is open, so install the rule anyway.
 
 ## Step 6: Hide the Linux title bar
 

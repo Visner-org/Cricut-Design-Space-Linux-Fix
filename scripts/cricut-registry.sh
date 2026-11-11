@@ -5,7 +5,16 @@
 # Register the Cricut as a USB serial device (COM3) in the Wine prefix.
 set -e
 export WINEPREFIX="${WINEPREFIX:-$HOME/Games/cricut}" WINEDEBUG=-all
-TTY=/dev/ttyACM0
+# The cutter is usually /dev/ttyACM0, but another ACM device (a modem, an Arduino) can take that
+# name first. udev's by-id link names the Cricut itself; an argument overrides both.
+TTY="${1:-}"
+if [ -z "$TTY" ]; then
+    for p in /dev/serial/by-id/usb-Cricut_Inc_*-if00; do
+        [ -e "$p" ] && TTY="$(readlink -f "$p")" && break
+    done
+fi
+TTY="${TTY:-/dev/ttyACM0}"
+[ -c "$TTY" ] || { echo "No Cricut found at $TTY: plug it in and switch it on"; exit 1; }
 eval "$(udevadm info -q property -n $TTY | grep -E '^ID_(VENDOR_ID|MODEL_ID|REVISION|SERIAL_SHORT)=')"
 [ "$ID_VENDOR_ID" = 20d3 ] || { echo "$TTY is not a Cricut"; exit 1; }
 VID=${ID_VENDOR_ID^^} PID=${ID_MODEL_ID^^} REV=${ID_REVISION} SER=$ID_SERIAL_SHORT
@@ -33,4 +42,4 @@ for G in "{A5DCBF10-6530-11D2-901F-00C04FB951ED}" "{86E0D1E0-8089-11D0-9CE4-0800
     wine reg add "$KEY\\#" /v SymbolicLink /d "\\\\?\\USB#VID_${VID}&PID_${PID}#${SER}#$G" /f
     wine reg add "$KEY\\#\\Control" /v Linked /t REG_DWORD /d 1 /f
 done
-echo "Registered $INST as COM3"
+echo "Registered $INST as COM3 ($TTY)"

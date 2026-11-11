@@ -5,6 +5,16 @@
 # Start Cricut Design Space under Wine. Optional argument: the cricut:// login
 # callback URL that the browser hands back after sign-in.
 export WINEPREFIX="${WINEPREFIX:-$HOME/Games/cricut}" WINEDEBUG=-all WINEDLLOVERRIDES="winemenubuilder.exe=d"
+# The cutter's port must be in raw mode (README Step 5) and COM3 must point at it (Step 3). Do both
+# again here: it covers a missing udev rule and a port that came back under another name
+# (ttyACM1 after a replug). Does nothing if the machine isn't plugged in.
+for p in /dev/serial/by-id/usb-Cricut_Inc_*-if00; do
+    [ -e "$p" ] || continue
+    tty="$(readlink -f "$p")"
+    stty -F "$tty" raw -echo -echoe -echok -echoctl -echoke -hupcl 2>/dev/null
+    [ -L "$WINEPREFIX/dosdevices/com3" ] && ln -sfn "$tty" "$WINEPREFIX/dosdevices/com3"
+    break
+done
 cd "$WINEPREFIX/drive_c/users/$USER/AppData/Local/Programs/Cricut Design Space" || exit 1
 # Electron's main process crashes (EBADF) if stdio isn't a real file under Wine
 exec wine "Cricut Design Space.exe" "$@" </dev/null >>"$WINEPREFIX/cricut-design-space.log" 2>&1
