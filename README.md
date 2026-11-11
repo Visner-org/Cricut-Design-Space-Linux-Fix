@@ -1,6 +1,6 @@
 # Cricut Design Space on Linux (Wine)
 
-Cricut Design Space 10.7 runs under Wine on Linux and cuts over USB. Sign-in, designing, connecting the machine, cutting and Print Then Cut all work on an Explore Air 2. No Windows VM needed. Tested on Nobara, Ubuntu 26.04, CachyOS and Bazzite.
+Cricut Design Space 10.7 runs under Wine on Linux and cuts over USB. Sign-in, designing, connecting the machine, cutting and Print Then Cut all work on an Explore Air 2. A Maker 3 signs in, connects and cuts too (reported by a user on Design Space 10.11.128, see [Other machines](#other-machines)). No Windows VM needed. Tested on Nobara, Ubuntu 26.04, CachyOS and Bazzite.
 
 > **Made by AI.** The investigation, every script, the Wine patch and this README were done by an AI assistant, Claude (Anthropic), working on my PC. I set the goal, ran the tests with my own machine, reported what I saw, and checked that it cuts. Read the scripts before running them, and treat the patch as untested beyond the setup below.
 
@@ -78,6 +78,16 @@ The rest of this README is the detailed version.
 
 Other Cricut machines should work the same way if they show up as a USB serial port (`/dev/ttyACM*`). There are two versions of the patch: one for Wine development releases (made on 11.17, also tested on 11.20) and one for 11.0 (the current stable release). The 11.0 one builds but hasn't been run with Design Space yet.
 
+### Other machines
+
+Reported by a user on their own hardware, 2026-11-11:
+
+| Machine | Setup | Result |
+| --- | --- | --- |
+| Cricut Maker 3, USB `20d3:0028` | Linux Mint 22.3 (Ubuntu 24.04 base), WineHQ `wine-staging` 11.20, Design Space 10.11.128, DLLs built from `patches/wine-cricut.patch` | Installs, signs in (Chrome), connects over USB and cuts. Tested with Smart Paper Sticker Cardstock loaded without a mat, fine-point blade. Print Then Cut and Bluetooth untested |
+
+The Maker 3 shows up the same way as the Explore Air 2: `cdc_acm` creates `/dev/ttyACM0`, and `scripts/cricut-registry.sh` registers it unchanged (it reads the product ID from the device).
+
 ### Other distros
 
 Tested 2026-10-20 in virtual machines with the Explore Air 2 passed through over USB, Design Space 10.8.81:
@@ -96,6 +106,7 @@ Cutting and Print Then Cut were tested on Nobara only. How to get Wine on each: 
 | --- | --- |
 | 10.7.106 | Works: sign-in, USB connect and cutting, including after power cycles. Print Then Cut works: the page prints with its registration marks, the machine reads them, and the cut lands within a millimetre |
 | 10.8.81 | Installs silently with `/S` from the full installer. Its device helpers are new builds but use the same Windows property names, so the patch should cover them. Cutting untested: the app downgraded itself to 10.7.106 within minutes (see below) |
+| 10.11.128 | Reported by a user on a Maker 3 (2026-11-11): installs silently with `/S`, signs in, connects over USB and cuts, with the 11.20 DLLs. It was the version `latest.json` listed and the app stayed on it for a day of use. Print Then Cut untested |
 
 **Design Space picks its own version.** `latest.json` lists the newest release, but the app follows the version Cricut assigns your account and will update or downgrade itself to match. Installing a newer version than your account's just gets reverted. Any version change, either way:
 
@@ -348,7 +359,7 @@ None of this is in Wine yet. The patch fills gaps in Wine rather than adding Cri
 Open questions:
 
 - Bluetooth connection is untested. Wine's `BluetoothAdapter.GetRadioAsync` is still a stub.
-- Only the Explore Air 2 was tested. Reports from other machines (Maker, Joy, Explore 3) are welcome.
+- Tested on the Explore Air 2, and by a user on the Maker 3. Reports from other machines (Maker, Joy, Explore 3) are welcome.
 
 ## License
 
