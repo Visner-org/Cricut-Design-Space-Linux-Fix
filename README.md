@@ -1,6 +1,6 @@
 # Cricut Design Space on Linux (Wine)
 
-Cricut Design Space 10.7 runs under Wine on Linux and cuts over USB. Sign-in, designing, connecting the machine, cutting and Print Then Cut all work on an Explore Air 2. No Windows VM needed. Tested on Nobara, Ubuntu 26.04, CachyOS and Bazzite.
+Cricut Design Space 10.7 runs under Wine on Linux and cuts over USB. Sign-in, designing, connecting the machine, cutting and Print Then Cut all work on an Explore Air 2. A Maker 3 signs in, connects and cuts too (reported by a user on Design Space 10.11.128, see [Other machines](#other-machines)). No Windows VM needed. Tested on Nobara, Ubuntu 26.04, CachyOS and Bazzite.
 
 > **Made by AI.** The investigation, every script, the Wine patch and this README were done by an AI assistant, Claude (Anthropic), working on my PC. I set the goal, ran the tests with my own machine, reported what I saw, and checked that it cuts. Read the scripts before running them, and treat the patch as untested beyond the setup below.
 
@@ -78,6 +78,18 @@ The rest of this README is the detailed version.
 
 Other Cricut machines should work the same way if they show up as a USB serial port (`/dev/ttyACM*`). There are two versions of the patch: one for Wine development releases (made on 11.17, also tested on 11.20) and one for 11.0 (the current stable release). The 11.0 one builds but hasn't been run with Design Space yet.
 
+### Other machines
+
+Reported by a user on their own hardware, 2026-11-11:
+
+| Machine | Setup | Result |
+| --- | --- | --- |
+| Cricut Maker 3, USB `20d3:0028` | Linux Mint 22.3 (Ubuntu 24.04 base), WineHQ `wine-staging` 11.20, Design Space 10.11.128, DLLs built from `patches/wine-cricut.patch` | Installs, signs in (Chrome), connects over USB and cuts. Tested with Smart Paper Sticker Cardstock loaded without a mat, fine-point blade. Print Then Cut and Bluetooth untested |
+
+The same setup was then installed from scratch on a second Linux Mint 22.3 laptop, under a different user account, with the same Maker 3: it installs, signs in, connects and cuts.
+
+The Maker 3 shows up the same way as the Explore Air 2: `cdc_acm` creates `/dev/ttyACM0`, and `scripts/cricut-registry.sh` registers it unchanged (it reads the product ID from the device).
+
 ### Other distros
 
 Tested 2026-10-20 in virtual machines with the Explore Air 2 passed through over USB, Design Space 10.8.81:
@@ -98,6 +110,7 @@ Cutting and Print Then Cut were tested by the author on Nobara only. How to get 
 | --- | --- |
 | 10.7.106 | Works: sign-in, USB connect and cutting, including after power cycles. Print Then Cut works: the page prints with its registration marks, the machine reads them, and the cut lands within a millimetre |
 | 10.8.81 | Installs silently with `/S` from the full installer. Its device helpers are new builds but use the same Windows property names, so the patch should cover them. Cutting untested: the app downgraded itself to 10.7.106 within minutes (see below) |
+| 10.11.128 | Reported by a user on a Maker 3 (2026-11-11): installs silently with `/S`, signs in, connects over USB and cuts, with the 11.20 DLLs. It was the version `latest.json` listed and the app stayed on it for a day of use. Print Then Cut untested |
 
 **Design Space picks its own version.** `latest.json` lists the newest release, but the app follows the version Cricut assigns your account and will update or downgrade itself to match. Installing a newer version than your account's just gets reverted. Any version change, either way:
 
@@ -222,7 +235,7 @@ With the machine **on and plugged in** (the script reads its serial number from 
 ./scripts/cricut-registry.sh
 ```
 
-It maps COM3 to `/dev/ttyACM0` and adds the registry entries Windows would create: the device under `Enum\USB\VID_20D3&PID_…\<serial>` with `PortName=COM3`, plus the USB-device and COM-port interfaces marked as present. Restart Design Space afterwards, since it searches for USB devices only at startup. Without Step 4, connecting then fails with "USB Connection Failed".
+It finds the cutter's port (udev's `/dev/serial/by-id/usb-…Cricut…` link, falling back to `/dev/ttyACM0`; pass a path as an argument to override), maps COM3 to it and adds the registry entries Windows would create: the device under `Enum\USB\VID_20D3&PID_…\<serial>` with `PortName=COM3`, plus the USB-device and COM-port interfaces marked as present. Restart Design Space afterwards, since it searches for USB devices only at startup. Without Step 4, connecting then fails with "USB Connection Failed".
 
 ## Step 4: Patch three Wine DLLs
 
@@ -306,6 +319,8 @@ sudo udevadm control --reload
 
 Then switch the machine off and on. To check it, `stty -F /dev/ttyACM0 -a` should show `-icanon -icrnl -ixon`. To fix it for one session without the rule: `stty -F /dev/ttyACM0 raw -echo -echoe -echok -echoctl -echoke -hupcl`.
 
+The launcher also sets raw mode each time it starts, and re-points COM3 if the port came back under another name. That covers a missing rule at startup, but not a power cycle while Design Space is open, so install the rule anyway.
+
 ## Step 6: Hide the Linux title bar
 
 Design Space draws its own title bar with Windows-style buttons. The window manager adds a second one over it, which hides part of the app's top toolbar. Turn off window decorations for this prefix:
@@ -346,6 +361,9 @@ Plain shapes in a solid color still work in those projects, which makes it look 
 | Connect worked before, fails after Design Space changed version | Design Space updates (or downgrades) itself to the version Cricut assigns your account, which replaces the plugin folders and removes the patched `propsys.dll` | `scripts/install-patched-dlls.sh` |
 | Connect worked before, fails after a Wine update (log shows `Exit Code 5`) | Wine 11.21 loads `propsys` from the system folder; older versions of the install script only put it next to the helpers | Update this repo, close Design Space, run `scripts/install-patched-dlls.sh` |
 | Spinner never stops, or works once and not after a power cycle | Port is in terminal mode | Step 5 |
+| Stuck on "Connecting", and the machine then ignores everything until it's switched off and on | Seen twice in a day on a Maker 3 (Design Space 10.11.128). A log of the serial traffic showed the machine never answering one command that Design Space sends on every connect: `3d 00 24 24 24 00`, where `24 24 24` is `$$$`, the command-mode escape of the machine's Bluetooth module. Why it sometimes goes unanswered is unknown, and so is whether it happens on Windows | Switch the machine off and on, then connect again |
+| After that, the machine doesn't show up on USB at all; `dmesg` shows `device descriptor read/64, error -110` | The USB hub port got stuck after the hang (the machine itself was fine) | Move the cable to another USB port |
+| "Longer mat required" with a Smart Material loaded without a mat | Material Load Type on the Prepare screen is still "On Mat" (a Design Space setting, not Wine) | Set it to "Without Mat" |
 | App's top toolbar is hidden | Linux title bar on top of the app's own | Step 6 |
 | "The Print Then Cut operation is not supported in this project" on an image | The project's type doesn't allow printing (a Design Space setting, not Wine) | Start from **Blank Canvas**; see [Print Then Cut](#print-then-cut-start-from-blank-canvas) |
 | Print Then Cut page prints black around the design, no registration marks | Wine's `gdiplus` (Step 4) | Rebuild with the current patch, run `scripts/install-patched-dlls.sh <build folder>`, restart Design Space |
@@ -366,7 +384,7 @@ None of this is in Wine yet. The patch fills gaps in Wine rather than adding Cri
 Open questions:
 
 - Bluetooth connection is untested. Wine's `BluetoothAdapter.GetRadioAsync` is still a stub.
-- Only the Explore Air 2 was tested. Reports from other machines (Maker, Joy, Explore 3) are welcome.
+- Tested on the Explore Air 2, and by a user on the Maker 3. Reports from other machines (Maker, Joy, Explore 3) are welcome.
 
 ## License
 
