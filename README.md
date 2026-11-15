@@ -84,7 +84,7 @@ Reported by a user on their own hardware, 2026-11-11:
 
 | Machine | Setup | Result |
 | --- | --- | --- |
-| Cricut Maker 3, USB `20d3:0028` | Linux Mint 22.3 (Ubuntu 24.04 base), WineHQ `wine-staging` 11.20, Design Space 10.11.128, DLLs built from `patches/wine-cricut.patch` | Installs, signs in (Chrome), connects over USB and cuts. Tested with Smart Paper Sticker Cardstock loaded without a mat, fine-point blade. Print Then Cut and Bluetooth untested |
+| Cricut Maker 3, USB `20d3:0028` | Linux Mint 22.3 (Ubuntu 24.04 base), WineHQ `wine-staging` 11.20 unpacked into a folder ([Before you start](#before-you-start-install-wine)), Design Space 10.11.128, DLLs built from `patches/wine-cricut.patch` | Installs, signs in (Chrome), connects over USB and cuts. Tested with Smart Paper Sticker Cardstock loaded without a mat, fine-point blade. Print Then Cut and Bluetooth untested |
 
 The same setup was then installed from scratch on a second Linux Mint 22.3 laptop, under a different user account, with the same Maker 3: it installs, signs in, connects and cuts.
 
@@ -99,8 +99,6 @@ Tested 2026-10-20 in virtual machines with the Explore Air 2 passed through over
 | Ubuntu 26.04 LTS (GNOME) | WineHQ `winehq-staging` 11.20 | Installs, signs in (Snap Firefox), connects |
 | CachyOS (KDE) | `wine-staging` 11.20 | Installs, signs in, connects |
 | Bazzite 44 (KDE) | WineHQ `winehq-staging` 11.20 in a distrobox | Installs, signs in (Flatpak Firefox), connects |
-
-A user also reported Linux Mint 22.3 on real hardware (2026-11-11, Maker 3, Design Space 10.11.128) with WineHQ's 11.20 packages unpacked into a folder: installs, signs in (Chrome), connects and cuts.
 
 Cutting and Print Then Cut were tested by the author on Nobara only. How to get Wine on each: [Before you start: install Wine](#before-you-start-install-wine).
 
@@ -168,7 +166,7 @@ export PATH="$HOME/Games/wine-staging-11.20/opt/wine-staging/bin:$PATH"
 wine --version    # wine-11.20 (Staging)
 ```
 
-Run the rest of this guide in that same terminal, so the scripts find this Wine. `scripts/install-launcher.sh` writes its folder into the launcher, so the menu entry uses it too. apt isn't checking these downloads; to verify them, compare `sha256sum` with the `SHA256` fields in WineHQ's [package index](https://dl.winehq.org/wine-builds/ubuntu/dists/noble/main/binary-amd64/Packages.gz). Used on Linux Mint 22.3 with a Maker 3: install, sign-in, connect and cutting.
+Run the rest of this guide in that same terminal, so the scripts find this Wine. `scripts/install-launcher.sh` writes its folder into the launcher, so the menu entry uses it too. apt isn't checking these downloads; to verify them, compare `sha256sum` with the `SHA256` fields in WineHQ's [package index](https://dl.winehq.org/wine-builds/ubuntu/dists/noble/main/binary-amd64/Packages.gz). Used on Linux Mint 22.3 with a Maker 3 ([Other machines](#other-machines)).
 
 **CachyOS** (and probably Arch): the distro's package. CachyOS also has `wine-cachyos`, which is older (10.0 based) and untested here.
 
