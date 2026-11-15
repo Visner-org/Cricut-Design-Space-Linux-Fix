@@ -6,10 +6,11 @@
 set -e
 export WINEPREFIX="${WINEPREFIX:-$HOME/Games/cricut}" WINEDEBUG=-all
 # The cutter is usually /dev/ttyACM0, but another ACM device (a modem, an Arduino) can take that
-# name first. udev's by-id link names the Cricut itself; an argument overrides both.
+# name first. udev's by-id link names the Cricut itself (the vendor reads "Cricut Inc" on a Maker 3,
+# "Provo Craft & Novelty Inc" on an Explore Air 2, so match on the model name); an argument overrides both.
 TTY="${1:-}"
 if [ -z "$TTY" ]; then
-    for p in /dev/serial/by-id/usb-Cricut_Inc_*-if00; do
+    for p in /dev/serial/by-id/usb-*Cricut*-if00; do
         [ -e "$p" ] && TTY="$(readlink -f "$p")" && break
     done
 fi

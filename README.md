@@ -205,7 +205,7 @@ With the machine **on and plugged in** (the script reads its serial number from 
 ./scripts/cricut-registry.sh
 ```
 
-It finds the cutter's port (udev's `/dev/serial/by-id/usb-Cricut_Inc_…` link, falling back to `/dev/ttyACM0`; pass a path as an argument to override), maps COM3 to it and adds the registry entries Windows would create: the device under `Enum\USB\VID_20D3&PID_…\<serial>` with `PortName=COM3`, plus the USB-device and COM-port interfaces marked as present. Restart Design Space afterwards, since it searches for USB devices only at startup. Without Step 4, connecting then fails with "USB Connection Failed".
+It finds the cutter's port (udev's `/dev/serial/by-id/usb-…Cricut…` link, falling back to `/dev/ttyACM0`; pass a path as an argument to override), maps COM3 to it and adds the registry entries Windows would create: the device under `Enum\USB\VID_20D3&PID_…\<serial>` with `PortName=COM3`, plus the USB-device and COM-port interfaces marked as present. Restart Design Space afterwards, since it searches for USB devices only at startup. Without Step 4, connecting then fails with "USB Connection Failed".
 
 ## Step 4: Patch three Wine DLLs
 

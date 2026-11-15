@@ -8,7 +8,7 @@ export WINEPREFIX="${WINEPREFIX:-$HOME/Games/cricut}" WINEDEBUG=-all WINEDLLOVER
 # The cutter's port must be in raw mode (README Step 5) and COM3 must point at it (Step 3). Do both
 # again here: it covers a missing udev rule and a port that came back under another name
 # (ttyACM1 after a replug). Does nothing if the machine isn't plugged in.
-for p in /dev/serial/by-id/usb-Cricut_Inc_*-if00; do
+for p in /dev/serial/by-id/usb-*Cricut*-if00; do
     [ -e "$p" ] || continue
     tty="$(readlink -f "$p")"
     stty -F "$tty" raw -echo -echoe -echok -echoctl -echoke -hupcl 2>/dev/null
